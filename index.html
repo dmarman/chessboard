@@ -1,0 +1,222 @@
+<div id="chessboard"></div>
+
+<script>
+    class Piece {
+        constructor(type, options = {}) {
+            this.type = type; // 'R', 'N', 'B', 'Q', 'K', 'P'
+            this.name = options.name || null;
+            this.material = options.material || null;
+            this.style = options.style || null;
+        }
+
+        color() {
+            return this.type === this.type.toUpperCase() ? 'white' : 'black';
+        }
+    }
+
+    class ChessSet {
+        constructor() {
+            this.pieceNames = {
+                'P': 'Pawn',
+                'R': 'Rook',
+                'N': 'Knight',
+                'B': 'Bishop',
+                'Q': 'Queen',
+                'K': 'King'
+            };
+
+            this.pieces = [];
+        }
+
+        addPieces(pieceTypes, options = {}) {
+            pieceTypes.forEach(type => {
+                this.pieces.push(new Piece(type, { 
+                    name: this.pieceNames[type.toUpperCase()],
+                    ...options
+                }));
+            });            
+        }
+
+        shufflePieces() {
+            for (let i = this.pieces.length - 1; i > 0; i--) { // We iterate backwards through the array
+                const j = Math.floor(Math.random() * (i + 1)); // Pick a random index from 0 to i
+                [this.pieces[i], this.pieces[j]] = [this.pieces[j], this.pieces[i]]; // Swap elements using destructuring assignment
+            }   
+        }
+    }
+
+    class Chessboard {
+        constructor() {
+            this.board = this.createBoard();
+            this.pieces = [];
+        }
+
+        attachPieces(pieces) {
+            this.pieces = pieces;
+        }
+
+        createBoard() {
+            const board = [];
+            for (let i = 0; i < 8; i++) {
+                const row = [];
+                for (let j = 0; j < 8; j++) {
+                    row.push(null); // Initialize empty squares
+                }
+                board.push(row);
+            }
+            return board;
+        }
+
+        setFen(fen) {
+            const rows = fen.split(' ')[0].split('/');
+            for (let i = 0; i < 8; i++) {
+                let colIndex = 0;
+                for (const char of rows[i]) {
+                    if (isNaN(char)) {
+                        const index = this.pieces.findIndex(p => p.type === char);
+                        if (index !== -1) {
+                            this.board[i][colIndex] = this.pieces[index];
+                            this.pieces.splice(index, 1);
+                        }
+                        colIndex++;
+                    } else {
+                        colIndex += parseInt(char);
+                    }
+                }
+            }
+        }
+
+        movePiece(from, to) {
+            const [fromRow, fromCol] = this.parsePosition(from);
+            const [toRow, toCol] = this.parsePosition(to);
+            const piece = this.board[fromRow][fromCol];
+            if (piece) {
+                this.board[toRow][toCol] = piece; // Move piece
+                this.board[fromRow][fromCol] = null; // Clear original square
+            }
+        }
+
+        parsePosition(pos) {
+            const col = pos.charCodeAt(0) - 'a'.charCodeAt(0);
+            const row = 8 - parseInt(pos[1]);
+            return [row, col];
+        }
+
+        moveAlgebraic(move) {
+            move = move.replace(/[+#]$/, ''); // Strip check/checkmate indicators
+
+            if (move === 'O-O' || move === '0-0') { // Castling
+                const row = this.board[0].includes('K') ? 0 : 7;
+                this.board[row][6] = this.board[row][4];
+                this.board[row][5] = this.board[row][7];
+                this.board[row][4] = null;
+                this.board[row][7] = null;
+                return;
+            }
+            if (move === 'O-O-O' || move === '0-0-0') {  // Castling
+                const row = this.board[0].includes('K') ? 0 : 7;
+                this.board[row][2] = this.board[row][4];
+                this.board[row][3] = this.board[row][0];
+                this.board[row][4] = null;
+                this.board[row][0] = null;
+                return;
+            }
+
+            const from = move.slice(0, 2); // Parse source and destination squares from coordinate notation (e.g. "e2e4", "e7e5")
+            const to = move.slice(2, 4);
+            const promotion = move[4] || null; // e.g. "e7e8q" → 'q'
+
+            const [fromRow, fromCol] = this.parsePosition(from);
+            const [toRow, toCol] = this.parsePosition(to);
+
+            const piece = this.board[fromRow][fromCol];
+            if (!piece) return;
+
+            // En passant: pawn moves diagonally to an empty square
+            const isPawn = piece === 'P' || piece === 'p';
+            const isDiagonal = fromCol !== toCol;
+            const targetEmpty = !this.board[toRow][toCol];
+            if (isPawn && isDiagonal && targetEmpty) {
+                this.board[fromRow][toCol] = null; // Remove the captured pawn (it sits on the same row as the moving pawn, not the destination)
+            }
+
+            if (promotion) { // Promotion
+                this.board[toRow][toCol] = piece === 'P'
+                    ? promotion.toUpperCase()
+                    : promotion.toLowerCase();
+            } else {
+                this.board[toRow][toCol] = piece;
+            }
+
+            this.board[fromRow][fromCol] = null;
+        }
+    }
+
+    class ChessBoardUI {
+        constructor(chessboard) {
+            this.chessboard = chessboard;
+            this.boardElement = document.getElementById('chessboard');
+            this.renderBoard();
+        }
+
+        renderBoard() {
+            this.boardElement.innerHTML = ''; // Clear existing board
+            for (let i = 0; i < 8; i++) {
+                const rowElement = document.createElement('div');
+                rowElement.classList.add('chess-row');
+                for (let j = 0; j < 8; j++) {
+                    const squareElement = document.createElement('div');
+                    squareElement.classList.add('chess-square');
+                    if ((i + j) % 2 === 0) {
+                        squareElement.classList.add('light');
+                    } else {
+                        squareElement.classList.add('dark');
+                    }
+                    const piece = this.chessboard.board[i][j];
+                    if (piece) {
+                        squareElement.textContent = piece.type;
+                    }
+                    rowElement.appendChild(squareElement);
+                }
+                this.boardElement.appendChild(rowElement);
+            }
+        }
+    }
+    
+    const chessboard = new Chessboard();
+    const chessSet = new ChessSet();
+    const chessBoardUI = new ChessBoardUI(chessboard);
+
+    chessSet.addPieces([
+        'P', 'P', 'P'
+    ], { material: 'plastic' });
+
+    chessSet.addPieces([
+        'P', 'P', 'P'
+    ], { material: 'wood' });
+    
+    chessSet.addPieces([ 
+        'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P', 
+        'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R',
+        'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p',
+        'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'
+    ], {});
+
+    chessSet.shufflePieces();
+
+    chessboard.attachPieces(chessSet.pieces);
+
+    chessboard.setFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR');
+    chessBoardUI.renderBoard();
+
+    console.log(chessboard)
+    // console.log(JSON.stringify(chessboard.board));
+
+    // chessboard.moveAlgebraic('e2e4');
+    // console.log(chessboard)
+
+    //console.log(JSON.stringify(chessboard.board));
+
+    
+
+</script>
