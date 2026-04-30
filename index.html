@@ -3,11 +3,6 @@
 <head>
 <style>
   body { display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #1a1a1a; }
-  #chessboard { border: 3px solid #333; display: inline-block; }
-  .chess-row { display: flex; }
-  .chess-square { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; font-size: 36px; cursor: default; }
-  .light { background: #f0d9b5; }
-  .dark { background: #b58863; }
 </style>
 </head>
 <body>
@@ -51,35 +46,50 @@
             this.pieces = [];
         }
 
+        getPieceSvg(type, material) {
+            const template = this.PIECE_SVG_TEMPLATES[type.toUpperCase()];
+            if (!template) return null;
+            const isBlack = type === type.toLowerCase();
+            const fill = material === 'plastic' ? 'green' : material === 'wood' ? 'brown' : isBlack ? '#333' : '#fff';
+            const stroke = material === 'plastic' ? 'darkgreen' : material === 'wood' ? 'saddlebrown' : isBlack ? '#fff' : '#000';
+            return template.replace(/{{FILL}}/g, fill).replace(/{{STROKE}}/g, stroke);
+        }
+
         addPieces(piecesToAdd, options = {}) {
             piecesToAdd.forEach(type => {
-                this.pieces.push(new Piece(type, { 
+                this.pieces.push(new Piece(type, {
                     name: this.pieceNames[type.toUpperCase()],
-                    svg: this.PIECE_SVG_TEMPLATES[type.toUpperCase()]
-                        ? (() => {
-                            const isBlack = type === type.toLowerCase();
-                            const fill = options.material === 'plastic' ? 'green' : options.material === 'wood' ? 'brown' : isBlack ? '#333' : '#fff';
-                            const stroke = options.material === 'plastic' ? 'darkgreen' : options.material === 'wood' ? 'saddlebrown' : isBlack ? '#fff' : '#000';
-                            return this.PIECE_SVG_TEMPLATES[type.toUpperCase()].replace(/{{FILL}}/g, fill).replace(/{{STROKE}}/g, stroke);
-                        })()
-                        : null,
+                    svg: this.getPieceSvg(type, options.material),
                     ...options
                 }));
-            });            
+            });
         }
 
         shufflePieces() {
-            for (let i = this.pieces.length - 1; i > 0; i--) { // We iterate backwards through the array
-                const j = Math.floor(Math.random() * (i + 1)); // Pick a random index from 0 to i
-                [this.pieces[i], this.pieces[j]] = [this.pieces[j], this.pieces[i]]; // Swap elements using destructuring assignment
-            }   
+            for (let i = this.pieces.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [this.pieces[i], this.pieces[j]] = [this.pieces[j], this.pieces[i]];
+            }
         }
     }
 
     class Chessboard {
         constructor() {
-            this.board = this.createBoard();
+            this._board = this.createBoard();
             this.pieces = [];
+            this._listeners = {};
+        }
+
+        on(event, fn) {
+            (this._listeners[event] ??= []).push(fn);
+        }
+
+        emit(event, data) {
+            (this._listeners[event] ?? []).forEach(fn => fn(data));
+        }
+
+        getState() {
+            return this._board.map(row => [...row]);
         }
 
         attachPieces(pieces) {
@@ -91,7 +101,7 @@
             for (let i = 0; i < 8; i++) {
                 const row = [];
                 for (let j = 0; j < 8; j++) {
-                    row.push(null); // Initialize empty squares
+                    row.push(null);
                 }
                 board.push(row);
             }
@@ -106,7 +116,7 @@
                     if (isNaN(char)) {
                         const index = this.pieces.findIndex(p => p.type === char);
                         if (index !== -1) {
-                            this.board[i][colIndex] = this.pieces[index];
+                            this._board[i][colIndex] = this.pieces[index];
                             this.pieces.splice(index, 1);
                         }
                         colIndex++;
@@ -120,10 +130,12 @@
         movePiece(from, to) {
             const [fromRow, fromCol] = this.parsePosition(from);
             const [toRow, toCol] = this.parsePosition(to);
-            const piece = this.board[fromRow][fromCol];
+            const piece = this._board[fromRow][fromCol];
             if (piece) {
-                this.board[toRow][toCol] = piece; // Move piece
-                this.board[fromRow][fromCol] = null; // Clear original square
+                const captured = this._board[toRow][toCol];
+                this._board[toRow][toCol] = piece;
+                this._board[fromRow][fromCol] = null;
+                this.emit('move', { piece, captured, fromRow, fromCol, toRow, toCol, capturedRow: toRow, capturedCol: toCol });
             }
         }
 
@@ -134,91 +146,219 @@
         }
 
         moveAlgebraic(move) {
-            move = move.replace(/[+#]$/, ''); // Strip check/checkmate indicators
+            move = move.replace(/[+#]$/, '');
 
-            if (move === 'O-O' || move === '0-0') { // Castling
-                const row = this.board[0].includes('K') ? 0 : 7;
-                this.board[row][6] = this.board[row][4];
-                this.board[row][5] = this.board[row][7];
-                this.board[row][4] = null;
-                this.board[row][7] = null;
+            if (move === 'O-O' || move === '0-0') {
+                const row = this._board[7].some(p => p && p.type === 'K') ? 7 : 0;
+                const piece = this._board[row][4];
+                const rook = this._board[row][7];
+                this._board[row][6] = piece;
+                this._board[row][5] = rook;
+                this._board[row][4] = null;
+                this._board[row][7] = null;
+                this.emit('move', { piece, captured: null, fromRow: row, fromCol: 4, toRow: row, toCol: 6, capturedRow: null, capturedCol: null });
+                this.emit('move', { piece: rook, captured: null, fromRow: row, fromCol: 7, toRow: row, toCol: 5, capturedRow: null, capturedCol: null });
                 return;
             }
-            if (move === 'O-O-O' || move === '0-0-0') {  // Castling
-                const row = this.board[0].includes('K') ? 0 : 7;
-                this.board[row][2] = this.board[row][4];
-                this.board[row][3] = this.board[row][0];
-                this.board[row][4] = null;
-                this.board[row][0] = null;
+            if (move === 'O-O-O' || move === '0-0-0') {
+                const row = this._board[7].some(p => p && p.type === 'K') ? 7 : 0;
+                const piece = this._board[row][4];
+                const rook = this._board[row][0];
+                this._board[row][2] = piece;
+                this._board[row][3] = rook;
+                this._board[row][4] = null;
+                this._board[row][0] = null;
+                this.emit('move', { piece, captured: null, fromRow: row, fromCol: 4, toRow: row, toCol: 2, capturedRow: null, capturedCol: null });
+                this.emit('move', { piece: rook, captured: null, fromRow: row, fromCol: 0, toRow: row, toCol: 3, capturedRow: null, capturedCol: null });
                 return;
             }
 
-            const from = move.slice(0, 2); // Parse source and destination squares from coordinate notation (e.g. "e2e4", "e7e5")
+            const from = move.slice(0, 2);
             const to = move.slice(2, 4);
-            const promotion = move[4] || null; // e.g. "e7e8q" → 'q'
+            const promotion = move[4] || null;
 
             const [fromRow, fromCol] = this.parsePosition(from);
             const [toRow, toCol] = this.parsePosition(to);
 
-            const piece = this.board[fromRow][fromCol];
+            const piece = this._board[fromRow][fromCol];
             if (!piece) return;
 
-            // En passant: pawn moves diagonally to an empty square
-            const isPawn = piece === 'P' || piece === 'p';
+            const isPawn = piece.type === 'P' || piece.type === 'p';
             const isDiagonal = fromCol !== toCol;
-            const targetEmpty = !this.board[toRow][toCol];
+            const targetEmpty = !this._board[toRow][toCol];
+            let captured = this._board[toRow][toCol];
+            let capturedRow = toRow, capturedCol = toCol;
+
             if (isPawn && isDiagonal && targetEmpty) {
-                this.board[fromRow][toCol] = null; // Remove the captured pawn (it sits on the same row as the moving pawn, not the destination)
+                captured = this._board[fromRow][toCol];
+                this._board[fromRow][toCol] = null;
+                capturedRow = fromRow;
+                capturedCol = toCol;
             }
 
-            if (promotion) { // Promotion
-                this.board[toRow][toCol] = piece === 'P'
-                    ? promotion.toUpperCase()
-                    : promotion.toLowerCase();
+            if (promotion) {
+                piece.type = piece.color() === 'white' ? promotion.toUpperCase() : promotion.toLowerCase();
+                this._board[toRow][toCol] = piece;
+                this._board[fromRow][fromCol] = null;
+                this.emit('move', { piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion });
             } else {
-                this.board[toRow][toCol] = piece;
+                this._board[toRow][toCol] = piece;
+                this._board[fromRow][fromCol] = null;
+                this.emit('move', { piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol });
             }
-
-            this.board[fromRow][fromCol] = null;
         }
     }
 
-    class ChessBoardUI {
-        constructor(chessboard) {
-            this.chessboard = chessboard;
-            this.boardElement = document.getElementById('chessboard');
-            this.renderBoard();
+    class ChessboardUI {
+        constructor(element, initialState, options = {}) {
+            this.boardElement = typeof element === 'string' ? document.getElementById(element) : element;
+            this._uid = `cbui-${ChessboardUI._counter++}`;
+            this.boardElement.classList.add(this._uid);
+            this.squareSize = options.squareSize ?? 64;
+            this._lightColor = options.lightColor ?? '#f0d9b5';
+            this._darkColor = options.darkColor ?? '#b58863';
+            this._transitionMs = options.transitionMs ?? 100;
+            this._renderPiece = options.renderPiece ?? (piece => piece?.svg ?? '');
+            this.pieceElements = new Map();
+            this.piecesLayer = null;
+            this._queue = [];
+            this._draining = false;
+            this._styleEl = this._injectStyles();
+            this.initBoard(initialState);
         }
 
-        renderBoard() {
-            this.boardElement.innerHTML = ''; // Clear existing board
-            for (let i = 0; i < 8; i++) {
-                const rowElement = document.createElement('div');
-                rowElement.classList.add('chess-row');
-                for (let j = 0; j < 8; j++) {
-                    const squareElement = document.createElement('div');
-                    squareElement.classList.add('chess-square');
-                    if ((i + j) % 2 === 0) {
-                        squareElement.classList.add('light');
-                    } else {
-                        squareElement.classList.add('dark');
-                    }
-                    const piece = this.chessboard.board[i][j];
-                    if (piece) {
-                        squareElement.innerHTML = piece.svg;
-                        squareElement.querySelector('svg').style.cssText = 'width:100%;height:100%';
+        get lightColor() { return this._lightColor; }
+        set lightColor(v) { this._lightColor = v; this._updateStyles(); }
 
-                    }
-                    rowElement.appendChild(squareElement);
+        get darkColor() { return this._darkColor; }
+        set darkColor(v) { this._darkColor = v; this._updateStyles(); }
+
+        get transitionMs() { return this._transitionMs; }
+        set transitionMs(v) { this._transitionMs = v; this._updateStyles(); }
+
+        _injectStyles() {
+            const el = document.createElement('style');
+            document.head.appendChild(el);
+            this._updateStyles(el);
+            return el;
+        }
+
+        _updateStyles(el = this._styleEl) {
+            const s = this.squareSize;
+            const b = `.${this._uid}`;
+            el.textContent = `
+                ${b} { border: 3px solid #333; display: inline-block; position: relative; }
+                ${b} .chess-row { display: flex; }
+                ${b} .chess-square { width: ${s}px; height: ${s}px; }
+                ${b} .chess-square.light { background: ${this._lightColor}; }
+                ${b} .chess-square.dark { background: ${this._darkColor}; }
+                ${b} .piece {
+                    position: absolute;
+                    width: ${s}px;
+                    height: ${s}px;
+                    transition: transform ${this._transitionMs}ms ease-in-out;
+                    pointer-events: none;
                 }
-                this.boardElement.appendChild(rowElement);
+                ${b} .piece svg { width: 100%; height: 100%; }
+            `;
+        }
+
+        initBoard(initialState) {
+            this.boardElement.innerHTML = '';
+            this.pieceElements.clear();
+
+            const squaresLayer = document.createElement('div');
+            for (let i = 0; i < 8; i++) {
+                const row = document.createElement('div');
+                row.classList.add('chess-row');
+                for (let j = 0; j < 8; j++) {
+                    const sq = document.createElement('div');
+                    sq.classList.add('chess-square', (i + j) % 2 === 0 ? 'light' : 'dark');
+                    row.appendChild(sq);
+                }
+                squaresLayer.appendChild(row);
             }
+            this.boardElement.appendChild(squaresLayer);
+
+            this.piecesLayer = document.createElement('div');
+            this.piecesLayer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none';
+            this.boardElement.appendChild(this.piecesLayer);
+
+            for (let i = 0; i < 8; i++)
+                for (let j = 0; j < 8; j++) {
+                    const piece = initialState[i][j];
+                    if (piece) this.createPieceElement(piece, i, j);
+                }
+        }
+
+        _posKey(row, col) { return `${row},${col}`; }
+
+        createPieceElement(piece, row, col) {
+            const el = document.createElement('div');
+            el.className = 'piece';
+            el.style.top = `${row * this.squareSize}px`;
+            el.style.left = `${col * this.squareSize}px`;
+            el.innerHTML = this._renderPiece(piece);
+            this.piecesLayer.appendChild(el);
+            this.pieceElements.set(this._posKey(row, col), el);
+            return el;
+        }
+
+        updatePieceSvg(row, col, svg) {
+            const el = this.pieceElements.get(this._posKey(row, col));
+            if (el) el.innerHTML = svg;
+        }
+
+        queueMove(captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotionSvg = null) {
+            this._queue.push({ captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotionSvg });
+            if (!this._draining) this._drain();
+        }
+
+        async _drain() {
+            this._draining = true;
+            while (this._queue.length) {
+                const m = this._queue.shift();
+                await this._animateMove(m.captured, m.fromRow, m.fromCol, m.toRow, m.toCol, m.capturedRow, m.capturedCol, m.promotionSvg);
+            }
+            this._draining = false;
+        }
+
+        async _animateMove(captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotionSvg = null) {
+            if (captured && capturedRow != null) {
+                const capturedEl = this.pieceElements.get(this._posKey(capturedRow, capturedCol));
+                if (capturedEl) {
+                    capturedEl.remove();
+                    this.pieceElements.delete(this._posKey(capturedRow, capturedCol));
+                }
+            }
+
+            const fromKey = this._posKey(fromRow, fromCol);
+            const el = this.pieceElements.get(fromKey);
+            if (!el) return;
+
+            const dx = (toCol - fromCol) * this.squareSize;
+            const dy = (toRow - fromRow) * this.squareSize;
+
+            el.style.transform = `translate(${dx}px, ${dy}px)`;
+
+            await new Promise(resolve => setTimeout(resolve, this._transitionMs));
+
+            el.style.transition = 'none';
+            el.style.top = `${toRow * this.squareSize}px`;
+            el.style.left = `${toCol * this.squareSize}px`;
+            el.style.transform = '';
+            el.offsetHeight;
+            el.style.transition = '';
+
+            this.pieceElements.delete(fromKey);
+            this.pieceElements.set(this._posKey(toRow, toCol), el);
+            if (promotionSvg) el.innerHTML = promotionSvg;
         }
     }
-    
+    ChessboardUI._counter = 0;
+
     const chessboard = new Chessboard();
     const chessSet = new ChessSet();
-    const chessBoardUI = new ChessBoardUI(chessboard);
 
     chessSet.addPieces([
         'P', 'P', 'P'
@@ -227,30 +367,38 @@
     chessSet.addPieces([
         'P', 'P', 'P'
     ], { material: 'wood' });
-    
-    chessSet.addPieces([ 
-        'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P', 
+
+    chessSet.addPieces([
+        'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P',
         'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R',
         'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p',
         'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'
     ], {});
 
     chessSet.shufflePieces();
-
     chessboard.attachPieces(chessSet.pieces);
+    chessboard.setFen('pp/P/8/8/8/8//RNBQKBNR');
 
-    chessboard.setFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR');
-    chessBoardUI.renderBoard();
+    const chessBoardUI = new ChessboardUI('chessboard', chessboard.getState(), {
+        renderPiece: piece => piece.svg
+    });
+
+    chessboard.on('move', ({ piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion }) => {
+        const promotionSvg = promotion ? chessSet.getPieceSvg(piece.type) : null;
+        chessBoardUI.queueMove(captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotionSvg);
+    });
 
     function toCoord(row, col) {
         return String.fromCharCode('a'.charCodeAt(0) + col) + (8 - row);
     }
 
     function randomMove() {
+        const state = chessboard.getState();
+
         const occupied = [];
         for (let i = 0; i < 8; i++)
             for (let j = 0; j < 8; j++)
-                if (chessboard.board[i][j]) occupied.push([i, j]);
+                if (state[i][j]) occupied.push([i, j]);
 
         if (!occupied.length) return;
 
@@ -260,12 +408,10 @@
 
         const move = toCoord(fromRow, fromCol) + toCoord(toRow, toCol);
         console.log('Random move:', move);
-        chessboard.moveAlgebraic(move);
-        chessBoardUI.renderBoard();
+
+        //chessboard.moveAlgebraic(move);
+        chessboard.moveAlgebraic('a7a8Q');
     }
-
-    
-
 </script>
 <button onclick="randomMove()">Random Move</button>
 </body>
