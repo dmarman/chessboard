@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<script src="https://cdn.jsdelivr.net/npm/chess.js"></script>
 <style>
   body { display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #1a1a1a; }
 </style>
@@ -150,51 +151,44 @@
             return [row, col];
         }
 
-        moveAlgebraic(move) {
-            move = move.replace(/[+#]$/, '');
+        move({ from, to, captured: capturedType, promotion, isKingsideCastle, isQueensideCastle }) {
+            const [fromRow] = this.parsePosition(from);
 
-            if (move === 'O-O' || move === '0-0') {
-                const row = this._board[7].some(p => p && p.type === 'K') ? 7 : 0;
-                const piece = this._board[row][4];
-                const rook = this._board[row][7];
-                this._board[row][6] = piece;
-                this._board[row][5] = rook;
-                this._board[row][4] = null;
-                this._board[row][7] = null;
-                this.emit('move', { piece, captured: null, fromRow: row, fromCol: 4, toRow: row, toCol: 6, capturedRow: null, capturedCol: null });
-                this.emit('move', { piece: rook, captured: null, fromRow: row, fromCol: 7, toRow: row, toCol: 5, capturedRow: null, capturedCol: null });
-                return;
-            }
-            if (move === 'O-O-O' || move === '0-0-0') {
-                const row = this._board[7].some(p => p && p.type === 'K') ? 7 : 0;
-                const piece = this._board[row][4];
-                const rook = this._board[row][0];
-                this._board[row][2] = piece;
-                this._board[row][3] = rook;
-                this._board[row][4] = null;
-                this._board[row][0] = null;
-                this.emit('move', { piece, captured: null, fromRow: row, fromCol: 4, toRow: row, toCol: 2, capturedRow: null, capturedCol: null });
-                this.emit('move', { piece: rook, captured: null, fromRow: row, fromCol: 0, toRow: row, toCol: 3, capturedRow: null, capturedCol: null });
+            if (isKingsideCastle) {
+                const piece = this._board[fromRow][4];
+                const rook = this._board[fromRow][7];
+                this._board[fromRow][6] = piece;
+                this._board[fromRow][5] = rook;
+                this._board[fromRow][4] = null;
+                this._board[fromRow][7] = null;
+                this.emit('move', { piece, captured: null, fromRow, fromCol: 4, toRow: fromRow, toCol: 6, capturedRow: null, capturedCol: null });
+                this.emit('move', { piece: rook, captured: null, fromRow, fromCol: 7, toRow: fromRow, toCol: 5, capturedRow: null, capturedCol: null });
                 return;
             }
 
-            const from = move.slice(0, 2);
-            const to = move.slice(2, 4);
-            const promotion = move[4] || null;
+            if (isQueensideCastle) {
+                const piece = this._board[fromRow][4];
+                const rook = this._board[fromRow][0];
+                this._board[fromRow][2] = piece;
+                this._board[fromRow][3] = rook;
+                this._board[fromRow][4] = null;
+                this._board[fromRow][0] = null;
+                this.emit('move', { piece, captured: null, fromRow, fromCol: 4, toRow: fromRow, toCol: 2, capturedRow: null, capturedCol: null });
+                this.emit('move', { piece: rook, captured: null, fromRow, fromCol: 0, toRow: fromRow, toCol: 3, capturedRow: null, capturedCol: null });
+                return;
+            }
 
-            const [fromRow, fromCol] = this.parsePosition(from);
+            const [, fromCol] = this.parsePosition(from);
             const [toRow, toCol] = this.parsePosition(to);
 
             const piece = this._board[fromRow][fromCol];
             if (!piece) return;
 
-            const isPawn = piece.type === 'P' || piece.type === 'p';
-            const isDiagonal = fromCol !== toCol;
-            const targetEmpty = !this._board[toRow][toCol];
             let captured = this._board[toRow][toCol];
             let capturedRow = toRow, capturedCol = toCol;
 
-            if (isPawn && isDiagonal && targetEmpty) {
+            if (capturedType && !captured) {
+                // en passant: captured pawn sits on moving pawn's rank, destination file
                 captured = this._board[fromRow][toCol];
                 this._board[fromRow][toCol] = null;
                 capturedRow = fromRow;
@@ -203,14 +197,14 @@
 
             if (promotion) {
                 piece.type = piece.color() === 'white' ? promotion.toUpperCase() : promotion.toLowerCase();
-                this._board[toRow][toCol] = piece;
-                this._board[fromRow][fromCol] = null;
-                this.emit('move', { piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion });
-            } else {
-                this._board[toRow][toCol] = piece;
-                this._board[fromRow][fromCol] = null;
-                this.emit('move', { piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol });
             }
+
+            this._board[toRow][toCol] = piece;
+            this._board[fromRow][fromCol] = null;
+            this.emit('move', { piece, captured, fromRow, fromCol, toRow, toCol,
+                capturedRow: captured ? capturedRow : null,
+                capturedCol: captured ? capturedCol : null,
+                promotion: promotion || null });
         }
     }
 
@@ -222,8 +216,8 @@
             this.squareSize = options.squareSize ?? 64;
             this._lightColor = options.lightColor ?? '#f0d9b5';
             this._darkColor = options.darkColor ?? '#b58863';
-            this._transitionMs = options.transitionMs ?? 200;
-            this._shakeMs = options.shakeMs ?? 100;
+            this._transitionMs = options.transitionMs ?? 100;
+            this._shakeMs = options.shakeMs ?? 50;
             this._renderPiece = options.renderPiece ?? (() => '');
             this.pieceElements = new Map();
             this.piecesLayer = null;
@@ -421,8 +415,55 @@
         }
     }
 
+    class ChessGame {
+        constructor() {
+            this.chess = new Chess();
+            this._listeners = {};
+        }
+
+        on(event, fn) {
+            (this._listeners[event] ??= []).push(fn);
+        }
+
+        emit(event, data) {
+            (this._listeners[event] ?? []).forEach(fn => fn(data));
+        }
+
+        setChessboard(chessboard) {
+            this.chessboard = chessboard;
+            this.chessboard.setFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+            this.chessboard.on('move', data => this.emit('move', data));
+        }
+
+        moves() {
+            return this.chess.moves();
+        }
+
+        move(move) {
+            const chessMove = this.chess.move(move);
+            if (!chessMove) return false;
+
+            this.chessboard.move({
+                from: chessMove.from,
+                to: chessMove.to,
+                captured: chessMove.captured,
+                promotion: chessMove.promotion,
+                isKingsideCastle: chessMove.isKingsideCastle(),
+                isQueensideCastle: chessMove.isQueensideCastle(),
+            });
+
+            return true;   
+        }
+
+        isGameOver() {
+            return this.chess.isGameOver();
+        }
+    }
+    
     const chessboard = new Chessboard();
     const chessSet = new ChessSet();
+    const svgTheme = new SvgPieceTheme();
+    const chessGame = new ChessGame();
 
     chessSet.addPieces([
         'N', 'N', 'N'
@@ -441,43 +482,25 @@
 
     chessSet.shufflePieces();
     chessboard.attachPieces(chessSet.pieces);
-    chessboard.setFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
-
-    const svgTheme = new SvgPieceTheme();
+    chessGame.setChessboard(chessboard);
+    
 
     const chessBoardUI = new ChessboardUI('chessboard', chessboard.getState(), {
         renderPiece: piece => svgTheme.render(piece)
     });
 
-    chessboard.on('move', ({ piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion }) => {
+    chessGame.on('move', ({ piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion }) => {
         chessBoardUI.queueMove(piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, !!promotion);
     });
+    
 
-    function toCoord(row, col) {
-        return String.fromCharCode('a'.charCodeAt(0) + col) + (8 - row);
+    while (!chessGame.isGameOver()) {
+        const moves = chessGame.moves()
+        const move = moves[Math.floor(Math.random() * moves.length)]
+        const chessMove = chessGame.move(move)        
     }
 
-    function randomMove() {
-        const state = chessboard.getState();
 
-        const occupied = [];
-        for (let i = 0; i < 8; i++)
-            for (let j = 0; j < 8; j++)
-                if (state[i][j]) occupied.push([i, j]);
-
-        if (!occupied.length) return;
-
-        const [fromRow, fromCol] = occupied[Math.floor(Math.random() * occupied.length)];
-        const toRow = Math.floor(Math.random() * 8);
-        const toCol = Math.floor(Math.random() * 8);
-
-        const move = toCoord(fromRow, fromCol) + toCoord(toRow, toCol);
-        console.log('Random move:', move);
-
-        chessboard.moveAlgebraic(move);
-        //chessboard.moveAlgebraic('a7a8Q');
-    }
 </script>
-<button onclick="randomMove()">Random Move</button>
 </body>
 </html>
