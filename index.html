@@ -340,7 +340,10 @@
         }
 
         async _runSteps(el, steps) {
-            for (const step of steps) await step(el);
+            for (const step of steps) {
+                if (Array.isArray(step)) await Promise.all(step.map(s => s(el)));
+                else await step(el);
+            }
         }
 
         async _animateSlide(el, dx, dy, toRow, toCol) {
@@ -371,14 +374,24 @@
             });
         }
 
+        _animateThrow(el, dx, dy) {
+            const rot = (Math.random() < 0.5 ? 1 : -1) * (270 + Math.random() * 360);
+            el.style.zIndex = '999';
+            if(dx > 200) dx = 200;
+            else if(dx < -200) dx = -200;
+            if(dy > 200) dy = 200;
+            else if(dy < -200) dy = -200;
+            return el.animate([
+                { transform: 'translate(0,0) rotate(0deg)', opacity: 1 },
+                { transform: `translate(${dx}px,${dy}px) rotate(${rot}deg)`, opacity: 0 },
+            ], { duration: this._transitionMs/2, easing: 'ease-out', fill: 'forwards' }).finished.then(() => el.remove());
+        }
+
         _handleCaptureAndPromotion(el, piece, captured, capturedRow, capturedCol, promotion) {
             if (promotion) el.innerHTML = this._renderPiece(piece);
             if (captured && capturedRow != null) {
                 const capturedEl = this.pieceElements.get(this._posKey(capturedRow, capturedCol));
-                if (capturedEl) {
-                    capturedEl.remove();
-                    this.pieceElements.delete(this._posKey(capturedRow, capturedCol));
-                }
+                if (capturedEl) this.pieceElements.delete(this._posKey(capturedRow, capturedCol));
             }
         }
 
@@ -390,10 +403,17 @@
             const dx = (toCol - fromCol) * this.squareSize;
             const dy = (toRow - fromRow) * this.squareSize;
 
+            const capturedEl = (captured && capturedRow != null)
+                ? this.pieceElements.get(this._posKey(capturedRow, capturedCol))
+                : null;
+
             await this._runSteps(el, [
                 el => this._animateSlide(el, dx, dy, toRow, toCol),
                 el => this._handleCaptureAndPromotion(el, piece, captured, capturedRow, capturedCol, promotion),
-                el => this._animateShake(el),
+                [
+                    el => this._animateShake(el),
+                    () => capturedEl ? this._animateThrow(capturedEl, dx, dy) : Promise.resolve(),
+                ],
             ]);
 
             this.pieceElements.delete(fromKey);
@@ -455,6 +475,7 @@
         console.log('Random move:', move);
 
         chessboard.moveAlgebraic(move);
+        //chessboard.moveAlgebraic('a7a8Q');
     }
 </script>
 <button onclick="randomMove()">Random Move</button>
