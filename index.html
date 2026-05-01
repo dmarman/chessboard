@@ -440,8 +440,8 @@
             this.chess.reset();
         }
 
-        moves() {
-            return this.chess.moves();
+        moves(options = {}) {
+            return this.chess.moves(options);
         }
 
         move(move) {
@@ -463,6 +463,24 @@
         isGameOver() {
             return this.chess.isGameOver();
         }
+
+        turn() {
+            return this.chess.turn();   
+        }
+
+        fen() {
+            return this.chess.fen();
+        }
+
+        isCheck() {
+            return this.chess.isCheck();
+        }
+
+        get(square) {
+            return this.chess.get(square);
+        }
+
+
     }
     
     const chessboard = new Chessboard();
@@ -498,7 +516,7 @@
     function randomMove() {
         const moves = chessGame.moves()
         const move = moves[Math.floor(Math.random() * moves.length)]
-        chessGame.move(move)  
+        chessGame.move(move)
     }
 
     function addRandomPieceToCollection() {
@@ -508,6 +526,10 @@
         chessSet.addPieceObject(piece);
     }
 
+    function logFen() {
+        console.log(chessGame.fen());
+    }
+
 
 </script>
 
@@ -515,6 +537,7 @@
         <button onclick="ResetChessboard()">Reset</button>
         <button onclick="randomMove()">Random move</button>
         <button onclick="addRandomPieceToCollection()">Add random piece</button>
+         <button onclick="logFen()">Log fen</button>
     </div>
 
 </body>
