@@ -2,6 +2,7 @@
 <html>
 <head>
 <script src="https://cdn.jsdelivr.net/npm/chess.js"></script>
+<script src="stockfish-engine.js"></script>
 <style>
   body { display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #1a1a1a; }
 </style>
@@ -487,6 +488,7 @@
     const chessSet = new ChessSet();
     const chessGame = new ChessGame();
     const svgTheme = new SvgPieceTheme();
+    const engine = new StockfishEngine();
     const chessBoardUI = new ChessboardUI('chessboard', {
         renderPiece: piece => svgTheme.render(piece)
     });
@@ -513,10 +515,18 @@
         chessBoardUI.initBoard(chessboard.getState());
     }
 
-    function randomMove() {
-        const moves = chessGame.moves()
-        const move = moves[Math.floor(Math.random() * moves.length)]
-        chessGame.move(move)
+    async function randomMove() {
+        if (chessGame.isGameOver()) return;
+
+        const moves = chessGame.moves();
+        chessGame.move(moves[Math.floor(Math.random() * moves.length)]);
+
+        if (chessGame.isGameOver()) return;
+
+        const results = await engine.search({ fen: chessGame.fen(), movetime: 100 });
+        if (!results) return;
+        
+        chessGame.move(results[0].move);
     }
 
     function addRandomPieceToCollection() {
