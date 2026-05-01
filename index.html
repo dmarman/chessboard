@@ -42,6 +42,7 @@
             this._materials = {
                 plastic: { fill: 'green', stroke: 'darkgreen' },
                 wood:    { fill: 'brown', stroke: 'saddlebrown' },
+                gold:    { fill: 'gold',  stroke: 'darkgoldenrod' },
             };
         }
 
@@ -125,6 +126,11 @@
 
         setPieces(pieces) {
             this.pieces = [...pieces];
+        }
+
+        getPieceAt(pos) {
+            const [row, col] = this.parsePosition(pos);
+            return this._board[row][col];
         }
 
         createBoard() {
@@ -328,8 +334,8 @@
             if (el) el.innerHTML = this._renderPiece(piece);
         }
 
-        queueMove(piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion = false) {
-            this._queue.push({ piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion });
+        queueMove(piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion = false, effect = null) {
+            this._queue.push({ piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion, effect });
             if (!this._draining) this._drain();
         }
 
@@ -337,7 +343,7 @@
             this._draining = true;
             while (this._queue.length) {
                 const m = this._queue.shift();
-                await this._animateMove(m.piece, m.captured, m.fromRow, m.fromCol, m.toRow, m.toCol, m.capturedRow, m.capturedCol, m.promotion);
+                await this._animateMove(m.piece, m.captured, m.fromRow, m.fromCol, m.toRow, m.toCol, m.capturedRow, m.capturedCol, m.promotion, m.effect);
             }
             this._draining = false;
         }
@@ -397,7 +403,7 @@
             }
         }
 
-        async _animateMove(piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion = false) {
+        async _animateMove(piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion = false, effect = null) {
             const fromKey = this._posKey(fromRow, fromCol);
             const el = this.pieceElements.get(fromKey);
             if (!el) return;
@@ -410,6 +416,11 @@
             const capturedEl = (captured && capturedRow != null)
                 ? this.pieceElements.get(this._posKey(capturedRow, capturedCol))
                 : null;
+
+
+            if(effect.length > 0) {
+                console.log(effect[0].value)
+            }
 
             await this._runSteps(el, [
                 el => this._animateSlide(el, dx, dy, vToRow, vToCol),
@@ -426,8 +437,13 @@
     }
 
     class ChessGame {
-        constructor() {
+        constructor(chessboard) {
             this.chess = new Chess();
+            
+            this.chessboard = chessboard;
+            //this.chessboard.setFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+            this.chessboard.on('move', data => this.emit('move', data));
+            
             this._listeners = {};
         }
 
@@ -439,10 +455,9 @@
             (this._listeners[event] ?? []).forEach(fn => fn(data));
         }
 
-        setChessboard(chessboard) {
-            this.chessboard = chessboard;
-            this.chessboard.setFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
-            this.chessboard.on('move', data => this.emit('move', data));
+        setFen(fen) {
+            this.chess.load(fen);
+            this.chessboard.setFen(fen);
         }
 
         reset() {
@@ -455,9 +470,9 @@
 
         move(move) {
             const chessMove = this.chess.move(move);
-            if (!chessMove) return false;
+            if (!chessMove) return null;
 
-            this.chessboard.move({
+            return this.chessboard.move({
                 from: chessMove.from,
                 to: chessMove.to,
                 captured: chessMove.captured,
@@ -465,8 +480,6 @@
                 isKingsideCastle: chessMove.isKingsideCastle(),
                 isQueensideCastle: chessMove.isQueensideCastle(),
             });
-
-            return true;   
         }
 
         isGameOver() {
@@ -488,12 +501,36 @@
         get(square) {
             return this.chess.get(square);
         }
+
+        getPieceAt(square) {
+            return this.chessboard.getPieceAt(square);
+        }
+
+    }
+
+    class Effects {
+        fromPiece({material, style}) {
+            let effects = [];
+
+            if (material == 'wood') {
+                effects.push({ source: 'material', sourceType: 'wood', type: 'add', value: 50 });
+            } else if (material == 'gold') {
+                effects.push({ source: 'material', sourceType: 'gold', type: 'add', value: 100 });
+            }
+
+            if(style == 'kiwen') {
+                effects.push({ source: 'style', sourceType: 'kiwen', type: 'mult', value: 2 });
+            }
+
+            return effects;
+        }
     }
     
-    const gameOrientation = 'black';//Math.random() < 0.5 ? 'white' : 'black';
+    const gameOrientation = 'white';//Math.random() < 0.5 ? 'white' : 'black';
+    const effects = new Effects();
     const chessboard = new Chessboard();
     const chessSet = new ChessSet();
-    const chessGame = new ChessGame();
+    const chessGame = new ChessGame(chessboard);
     const svgTheme = new SvgPieceTheme();
     const engine = new StockfishEngine();
     const chessBoardUI = new ChessboardUI('chessboard', {
@@ -502,7 +539,10 @@
     });
 
     chessGame.on('move', ({ piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion }) => {
-        chessBoardUI.queueMove(piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, !!promotion);
+        
+        const effect = effects.fromPiece(piece)
+        
+        chessBoardUI.queueMove(piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, !!promotion, effect);
     });
 
     chessSet.addPieces([
@@ -519,8 +559,10 @@
 
         chessSet.shufflePieces();
         chessboard.setPieces(chessSet.pieces);
-        chessGame.setChessboard(chessboard);
+        chessGame.setFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
         chessBoardUI.initBoard(chessboard.getState());
+
+        console.log(chessGame)
 
         if(chessBoardUI._orientation === 'black') {
             const results = await engine.search({ fen: chessGame.fen(), movetime: 100 }); 
@@ -528,13 +570,13 @@
         }
     }
 
-
-
     async function randomMove() {
         if (chessGame.isGameOver()) return;
 
-        const moves = chessGame.moves();
-        chessGame.move(moves[Math.floor(Math.random() * moves.length)]);
+        const moves = chessGame.moves({ verbose: true });
+        const pickedMove = moves[Math.floor(Math.random() * moves.length)];
+        
+        chessGame.move(pickedMove);
 
         if (chessGame.isGameOver()) return;
 
@@ -552,15 +594,17 @@
         }
         
         const randomType = types[Math.floor(Math.random() * types.length)];
-        const piece = new Piece(randomType, { material: 'wood' });
+        const randomMaterial = Math.random() < 0.5 ? 'gold' : 'wood';
+        const piece = new Piece(randomType, { 
+            name: chessSet.pieceNames[randomType.toUpperCase()],
+            material: randomMaterial 
+        });
         chessSet.addPieceObject(piece);
     }
 
     function logFen() {
         console.log(chessGame.fen());
     }
-
-
 </script>
 
     <div>
