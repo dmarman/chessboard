@@ -223,6 +223,7 @@
             this._transitionMs = options.transitionMs ?? 100;
             this._shakeMs = options.shakeMs ?? 50;
             this._renderPiece = options.renderPiece ?? (() => '');
+            this._orientation = options.orientation ?? 'white';
             this.pieceElements = new Map();
             this.piecesLayer = null;
             this._queue = [];
@@ -306,11 +307,16 @@
 
         _posKey(row, col) { return `${row},${col}`; }
 
+        _toVisual(row, col) {
+            return this._orientation === 'black' ? [7 - row, 7 - col] : [row, col];
+        }
+
         createPieceElement(piece, row, col) {
+            const [vRow, vCol] = this._toVisual(row, col);
             const el = document.createElement('div');
             el.className = 'piece';
-            el.style.top = `${row * this.squareSize}px`;
-            el.style.left = `${col * this.squareSize}px`;
+            el.style.top = `${vRow * this.squareSize}px`;
+            el.style.left = `${vCol * this.squareSize}px`;
             el.innerHTML = this._renderPiece(piece);
             this.piecesLayer.appendChild(el);
             this.pieceElements.set(this._posKey(row, col), el);
@@ -396,15 +402,17 @@
             const el = this.pieceElements.get(fromKey);
             if (!el) return;
 
-            const dx = (toCol - fromCol) * this.squareSize;
-            const dy = (toRow - fromRow) * this.squareSize;
+            const [vToRow, vToCol] = this._toVisual(toRow, toCol);
+            const [vFromRow, vFromCol] = this._toVisual(fromRow, fromCol);
+            const dx = (vToCol - vFromCol) * this.squareSize;
+            const dy = (vToRow - vFromRow) * this.squareSize;
 
             const capturedEl = (captured && capturedRow != null)
                 ? this.pieceElements.get(this._posKey(capturedRow, capturedCol))
                 : null;
 
             await this._runSteps(el, [
-                el => this._animateSlide(el, dx, dy, toRow, toCol),
+                el => this._animateSlide(el, dx, dy, vToRow, vToCol),
                 el => this._handleCaptureAndPromotion(el, piece, captured, capturedRow, capturedCol, promotion),
                 [
                     el => this._animateShake(el),
@@ -480,16 +488,16 @@
         get(square) {
             return this.chess.get(square);
         }
-
-
     }
     
+    const gameOrientation = 'black';//Math.random() < 0.5 ? 'white' : 'black';
     const chessboard = new Chessboard();
     const chessSet = new ChessSet();
     const chessGame = new ChessGame();
     const svgTheme = new SvgPieceTheme();
     const engine = new StockfishEngine();
     const chessBoardUI = new ChessboardUI('chessboard', {
+        orientation: gameOrientation,
         renderPiece: piece => svgTheme.render(piece)
     });
 
@@ -506,14 +514,21 @@
 
     ResetChessboard();
 
-    function ResetChessboard() {
+    async function ResetChessboard() {
         chessGame.reset();
 
         chessSet.shufflePieces();
         chessboard.setPieces(chessSet.pieces);
         chessGame.setChessboard(chessboard);
         chessBoardUI.initBoard(chessboard.getState());
+
+        if(chessBoardUI._orientation === 'black') {
+            const results = await engine.search({ fen: chessGame.fen(), movetime: 100 }); 
+            chessGame.move(results[0].move);
+        }
     }
+
+
 
     async function randomMove() {
         if (chessGame.isGameOver()) return;
@@ -523,14 +538,19 @@
 
         if (chessGame.isGameOver()) return;
 
-        const results = await engine.search({ fen: chessGame.fen(), movetime: 100 });
+        const results = await engine.search({ fen: chessGame.fen(), movetime: 200 });
         if (!results) return;
-        
+
         chessGame.move(results[0].move);
     }
 
     function addRandomPieceToCollection() {
-        const types = ['P', 'R', 'N', 'B', 'Q', 'K'];
+        let types = ['P', 'R', 'N', 'B', 'Q', 'K'];
+        
+        if(gameOrientation == "black") {
+            types = types.map(t => t.toLowerCase());
+        }
+        
         const randomType = types[Math.floor(Math.random() * types.length)];
         const piece = new Piece(randomType, { material: 'wood' });
         chessSet.addPieceObject(piece);
