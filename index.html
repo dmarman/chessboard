@@ -328,14 +328,6 @@
                 }
         }
 
-        animateAllPieces(className) {
-
-            this.boardElement.querySelectorAll(className).forEach(piece => {
-                piece.style.animationDelay    = `-${(Math.random() * 3).toFixed(2)}s`;
-                piece.style.animationDuration = `${(2.5 + Math.random()).toFixed(2)}s`;
-            });
-        }
-
         _posKey(row, col) { return `${row},${col}`; }
 
         _toVisual(row, col) {
@@ -613,9 +605,9 @@
         'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P',
     ], {material: 'gold'});
 
-    ResetChessboard();
+    resetChessboard();
 
-    async function ResetChessboard() {
+    async function resetChessboard() {
         chessGame.reset();
 
         chessSet.shufflePieces();
@@ -680,7 +672,7 @@
 </script>
 
     <div>
-        <button onclick="ResetChessboard()">Reset</button>
+        <button onclick="resetChessboard()">Reset</button>
         <button onclick="randomMove()">Random move</button>
         <button onclick="autoMove()">Auto move</button>
         <button onclick="addRandomPieceToCollection()">Add random piece</button>
