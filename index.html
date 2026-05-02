@@ -4,7 +4,25 @@
 <script src="https://cdn.jsdelivr.net/npm/chess.js"></script>
 <script src="stockfish-engine.js"></script>
 <style>
+  @font-face {
+    font-family: 'm6x11';
+    src: url('fonts/m6x11.ttf') format('truetype');
+  }
+
+  * { font-family: 'm6x11', sans-serif; }
+
   body { display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #1a1a1a; }
+
+  .score-popup {
+    position: absolute;
+    pointer-events: none;
+    font-family: 'm6x11', sans-serif;
+    font-weight: 900;
+    font-size: 32px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.7);
+    white-space: nowrap;
+    z-index: 2000;
+  }
 </style>
 </head>
 <body>
@@ -223,11 +241,11 @@
             this.boardElement = typeof element === 'string' ? document.getElementById(element) : element;
             this._uid = `cbui-${Math.random().toString(36).slice(2)}`;
             this.boardElement.classList.add(this._uid);
-            this.squareSize = options.squareSize ?? 64;
+            this.squareSize = options.squareSize ?? 90;
             this._lightColor = options.lightColor ?? '#f0d9b5';
             this._darkColor = options.darkColor ?? '#b58863';
-            this._transitionMs = options.transitionMs ?? 100;
-            this._shakeMs = options.shakeMs ?? 50;
+            this._transitionMs = options.transitionMs ?? 150;
+            this._shakeMs = options.shakeMs ?? 500;
             this._renderPiece = options.renderPiece ?? (() => '');
             this._orientation = options.orientation ?? 'white';
             this.pieceElements = new Map();
@@ -273,13 +291,7 @@
                     pointer-events: none;
                 }
                 ${b} .piece svg { width: 100%; height: 100%; }
-                @keyframes piece-land-shake {
-                    0%, 100% { transform: rotate(0); }
-                    20%      { transform: rotate(-6deg); }
-                    50%      { transform: rotate(3deg); }
-                    75%      { transform: rotate(-1deg); }
-                }
-                ${b} .piece.land-shake { animation: piece-land-shake ${this._shakeMs}ms ease-out; }
+
             `;
         }
 
@@ -368,19 +380,32 @@
             el.style.zIndex = '';
         }
 
+        _showScoreEffect(el, value) {
+            const rect = el.getBoundingClientRect();
+            const boardRect = this.boardElement.getBoundingClientRect();
+            const popup = document.createElement('div');
+            popup.className = 'score-popup';
+            const num = parseFloat(value);
+            popup.textContent = (num > 0 ? '+' : '') + (Number.isInteger(num) ? num : num.toFixed(2));
+            popup.style.color = num >= 0 ? '#fff' : '#f87171';
+            popup.style.left = (rect.left - boardRect.left + rect.width / 2) + 'px';
+            popup.style.top  = (rect.top  - boardRect.top  + rect.height / 4) + 'px';
+            this.boardElement.appendChild(popup);
+            popup.animate([
+                { transform: 'translateX(-50%) translateY(-140%)', opacity: 1, letterSpacing: '-0.4em' },
+                { transform: 'translateX(-50%) translateY(-140%)', opacity: 1 },
+            ], { duration: this._shakeMs, easing: 'ease-out', fill: 'forwards' }).finished.then(() => popup.remove());
+        }
+
         _animateShake(el) {
-            return new Promise(resolve => {
-                let resolved = false;
-                const done = () => {
-                    if (resolved) return;
-                    resolved = true;
-                    el.classList.remove('land-shake');
-                    resolve();
-                };
-                el.addEventListener('animationend', done, { once: true });
-                el.classList.add('land-shake');
-                setTimeout(done, this._shakeMs + 100);
-            });
+            return el.animate([
+                { transform: 'scale(1)    rotate(0)' },
+                { transform: 'scale(1.8)  rotate(10deg)', offset: 0.2 },
+                { transform: 'scale(0.7)  rotate(-5deg)', offset: 0.4 },
+                { transform: 'scale(1.2)  rotate(2deg)',  offset: 0.6 },
+                { transform: 'scale(0.9)  rotate(-1deg)', offset: 0.8 },
+                { transform: 'scale(1)    rotate(0)' },
+            ], { duration: this._shakeMs, easing: 'ease-out' }).finished;
         }
 
         _animateThrow(el, dx, dy) {
@@ -418,15 +443,16 @@
                 : null;
 
 
-            if(effect.length > 0) {
-                console.log(effect[0].value)
-            }
-
             await this._runSteps(el, [
                 el => this._animateSlide(el, dx, dy, vToRow, vToCol),
                 el => this._handleCaptureAndPromotion(el, piece, captured, capturedRow, capturedCol, promotion),
                 [
-                    el => this._animateShake(el),
+                    () => {
+                        if (effect && effect.length > 0 && effect[0].value != null) {
+                            this._showScoreEffect(el, effect[0].value);
+                            return this._animateShake(el);
+                        }
+                    },
                     () => capturedEl ? this._animateThrow(capturedEl, dx, dy) : Promise.resolve(),
                 ],
             ]);
@@ -546,11 +572,15 @@
     });
 
     chessSet.addPieces([
-        'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P',
+        //'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P',
         'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R',
         'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p',
         'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'
     ], {});
+
+    chessSet.addPieces([
+        'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P',
+    ], {material: 'gold'});
 
     ResetChessboard();
 
