@@ -23,6 +23,24 @@
     white-space: nowrap;
     z-index: 2000;
   }
+
+         /* @keyframes float {
+                0% {
+                    filter: drop-shadow(-2px 2px 0px rgba(0, 0, 0, 0.3));
+                    transform: translatey(0px);
+                }
+                50% {
+                    filter: drop-shadow(-3px 4px 0px rgba(0, 0, 0, 0.3));
+                    transform: translatey(-2px);
+                }
+                100% {
+                    filter: drop-shadow(-2px 2px 0px rgba(0, 0, 0, 0.3));
+                    transform: translatey(0px);
+                }
+            }
+            .piece { animation: float 3s ease-in-out infinite; } */
+
+
 </style>
 </head>
 <body>
@@ -321,6 +339,16 @@
                     const piece = initialState[i][j];
                     if (piece) this.createPieceElement(piece, i, j);
                 }
+
+            //this.animateAllPieces('.piece')
+        }
+
+        animateAllPieces(className) {
+
+            document.querySelectorAll(className).forEach(piece => {
+                piece.style.animationDelay    = `-${(Math.random() * 3).toFixed(2)}s`;
+                piece.style.animationDuration = `${(2.5 + Math.random()).toFixed(2)}s`;
+            });
         }
 
         _posKey(row, col) { return `${row},${col}`; }
@@ -338,6 +366,7 @@
             el.innerHTML = this._renderPiece(piece);
             this.piecesLayer.appendChild(el);
             this.pieceElements.set(this._posKey(row, col), el);
+            this._animateFloat(el);
             return el;
         }
 
@@ -368,6 +397,8 @@
         }
 
         async _animateSlide(el, dx, dy, toRow, toCol) {
+            el._floatAnimation?.cancel();
+            el._floatAnimation = null;
             el.style.zIndex = '1000';
             el.style.transform = `translate(${dx}px, ${dy}px)`;
             await new Promise(resolve => setTimeout(resolve, this._transitionMs));
@@ -399,13 +430,23 @@
 
         _animateShake(el) {
             return el.animate([
-                { transform: 'scale(1)    rotate(0)' },
-                { transform: 'scale(1.8)  rotate(10deg)', offset: 0.2 },
+                { transform: 'scale(1)    rotate(0)',     filter: 'drop-shadow(4px 4px 0.5px rgba(0,0,0,0.2))' },
+                { transform: 'scale(1.8)  rotate(10deg)', filter: 'drop-shadow(4px 8px 0.5px rgba(0,0,0,0.2))', offset: 0.2 },
                 { transform: 'scale(0.7)  rotate(-5deg)', offset: 0.4 },
-                { transform: 'scale(1.2)  rotate(2deg)',  offset: 0.6 },
+                { transform: 'scale(1.2)  rotate(2deg)',  filter: 'drop-shadow(4px 8px 0.5px rgba(0,0,0,0.2))',  offset: 0.6 },
                 { transform: 'scale(0.9)  rotate(-1deg)', offset: 0.8 },
-                { transform: 'scale(1)    rotate(0)' },
+                { transform: 'scale(1)    rotate(0)',     filter: 'drop-shadow(4px 4px 0.5px rgba(0,0,0,0.2))' },
             ], { duration: this._shakeMs, easing: 'ease-out' }).finished;
+        }
+
+        _animateFloat(el) {
+            el._floatAnimation?.cancel();
+            const delay = -(Math.random() * 3000);
+            el._floatAnimation = el.animate([
+                { filter: 'drop-shadow(4px 4px 0.5px rgba(0,0,0,0.2))', transform: 'translateY(0px)' },
+                { filter: 'drop-shadow(4px 8px 0.5px rgba(0,0,0,0.2))', transform: 'translateY(-4px)', offset: 0.5 },
+                { filter: 'drop-shadow(4px 4px 0.5px rgba(0,0,0,0.2))', transform: 'translateY(0px)' },
+            ], { duration: 3000, easing: 'ease-in-out', iterations: Infinity, delay });
         }
 
         _animateThrow(el, dx, dy) {
@@ -459,6 +500,7 @@
 
             this.pieceElements.delete(fromKey);
             this.pieceElements.set(this._posKey(toRow, toCol), el);
+            this._animateFloat(el);
         }
     }
 
