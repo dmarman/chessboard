@@ -23,24 +23,6 @@
     white-space: nowrap;
     z-index: 2000;
   }
-
-         /* @keyframes float {
-                0% {
-                    filter: drop-shadow(-2px 2px 0px rgba(0, 0, 0, 0.3));
-                    transform: translatey(0px);
-                }
-                50% {
-                    filter: drop-shadow(-3px 4px 0px rgba(0, 0, 0, 0.3));
-                    transform: translatey(-2px);
-                }
-                100% {
-                    filter: drop-shadow(-2px 2px 0px rgba(0, 0, 0, 0.3));
-                    transform: translatey(0px);
-                }
-            }
-            .piece { animation: float 3s ease-in-out infinite; } */
-
-
 </style>
 </head>
 <body>
@@ -53,6 +35,8 @@
             this.name = options.name || null;
             this.material = options.material || 'none';
             this.style = options.style || 'classic';
+
+            this.onBoard = false;
         }
 
         color() {
@@ -116,6 +100,10 @@
             this.pieces = [];
         }
 
+        getPieces() {
+            return [...this.pieces];
+        }
+
         addPieces(piecesToAdd, options = {}) {
             piecesToAdd.forEach(type => {
                 this.addPiece(type, options);
@@ -160,10 +148,6 @@
             return this._board.map(row => [...row]);
         }
 
-        setPieces(pieces) {
-            this.pieces = [...pieces];
-        }
-
         getPieceAt(pos) {
             const [row, col] = this.parsePosition(pos);
             return this._board[row][col];
@@ -173,17 +157,20 @@
             return Array.from({length: 8}, () => Array(8).fill(null));
         }
 
-        setFen(fen) {
+        setPiecesFromFen(fen, pieces) {
+            this.pieces = [...pieces];
             this._board = this.createBoard();
+            this.pieces.forEach(p => p.onBoard = false);
+
             const rows = fen.split(' ')[0].split('/');
             for (let i = 0; i < 8; i++) {
                 let colIndex = 0;
                 for (const char of rows[i]) {
                     if (isNaN(char)) {
-                        const index = this.pieces.findIndex(p => p.type === char);
+                        const index = this.pieces.findIndex(p => p.type === char && p.onBoard === false);
                         if (index !== -1) {
                             this._board[i][colIndex] = this.pieces[index];
-                            this.pieces.splice(index, 1);
+                            this.pieces[index].onBoard = true;
                         }
                         colIndex++;
                     } else {
@@ -199,7 +186,7 @@
             return [row, col];
         }
 
-        move({ from, to, captured: capturedType, promotion, isKingsideCastle, isQueensideCastle }) {
+        move({ from, to, captured: capturedType, promotion, isKingsideCastle, isQueensideCastle, player }) {
             const [fromRow, fromCol] = this.parsePosition(from);
             const [toRow, toCol] = this.parsePosition(to);
 
@@ -210,8 +197,8 @@
                 this._board[fromRow][5] = rook;
                 this._board[fromRow][4] = null;
                 this._board[fromRow][7] = null;
-                this.emit('move', { piece, captured: null, fromRow, fromCol: 4, toRow: fromRow, toCol: 6, capturedRow: null, capturedCol: null });
-                this.emit('move', { piece: rook, captured: null, fromRow, fromCol: 7, toRow: fromRow, toCol: 5, capturedRow: null, capturedCol: null });
+                this.emit('move', { piece, captured: null, fromRow, fromCol: 4, toRow: fromRow, toCol: 6, capturedRow: null, capturedCol: null, player });
+                this.emit('move', { piece: rook, captured: null, fromRow, fromCol: 7, toRow: fromRow, toCol: 5, capturedRow: null, capturedCol: null, player });
                 return;
             }
 
@@ -222,8 +209,8 @@
                 this._board[fromRow][3] = rook;
                 this._board[fromRow][4] = null;
                 this._board[fromRow][0] = null;
-                this.emit('move', { piece, captured: null, fromRow, fromCol: 4, toRow: fromRow, toCol: 2, capturedRow: null, capturedCol: null });
-                this.emit('move', { piece: rook, captured: null, fromRow, fromCol: 0, toRow: fromRow, toCol: 3, capturedRow: null, capturedCol: null });
+                this.emit('move', { piece, captured: null, fromRow, fromCol: 4, toRow: fromRow, toCol: 2, capturedRow: null, capturedCol: null, player });
+                this.emit('move', { piece: rook, captured: null, fromRow, fromCol: 0, toRow: fromRow, toCol: 3, capturedRow: null, capturedCol: null, player });
                 return;
             }
 
@@ -250,7 +237,7 @@
             this.emit('move', { piece, captured, fromRow, fromCol, toRow, toCol,
                 capturedRow: captured ? capturedRow : null,
                 capturedCol: captured ? capturedCol : null,
-                promotion: promotion || null });
+                promotion: promotion || null, player });
         }
     }
 
@@ -339,13 +326,11 @@
                     const piece = initialState[i][j];
                     if (piece) this.createPieceElement(piece, i, j);
                 }
-
-            //this.animateAllPieces('.piece')
         }
 
         animateAllPieces(className) {
 
-            document.querySelectorAll(className).forEach(piece => {
+            this.boardElement.querySelectorAll(className).forEach(piece => {
                 piece.style.animationDelay    = `-${(Math.random() * 3).toFixed(2)}s`;
                 piece.style.animationDuration = `${(2.5 + Math.random()).toFixed(2)}s`;
             });
@@ -400,14 +385,13 @@
             el._floatAnimation?.cancel();
             el._floatAnimation = null;
             el.style.zIndex = '1000';
-            el.style.transform = `translate(${dx}px, ${dy}px)`;
-            await new Promise(resolve => setTimeout(resolve, this._transitionMs));
-            el.style.transition = 'none';
+            await el.animate([
+                { transform: 'translate(0px, 0px)' },
+                { transform: `translate(${dx}px, ${dy}px)` },
+            ], { duration: this._transitionMs, easing: 'ease-in-out', fill: 'forwards' }).finished;
             el.style.top = `${toRow * this.squareSize}px`;
             el.style.left = `${toCol * this.squareSize}px`;
-            el.style.transform = '';
-            el.offsetHeight;
-            el.style.transition = '';
+            el.getAnimations().forEach(a => a.cancel());
             el.style.zIndex = '';
         }
 
@@ -509,7 +493,6 @@
             this.chess = new Chess();
             
             this.chessboard = chessboard;
-            //this.chessboard.setFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
             this.chessboard.on('move', data => this.emit('move', data));
             
             this._listeners = {};
@@ -523,9 +506,9 @@
             (this._listeners[event] ?? []).forEach(fn => fn(data));
         }
 
-        setFen(fen) {
+        setPiecesFromFen(fen, pieces) {
             this.chess.load(fen);
-            this.chessboard.setFen(fen);
+            this.chessboard.setPiecesFromFen(fen, pieces);
         }
 
         reset() {
@@ -536,18 +519,21 @@
             return this.chess.moves(options);
         }
 
-        move(move) {
-            const chessMove = this.chess.move(move);
+        move(move, player = null) {
+            const chessMove = this.chess.move(move); // Parse stockfish move to chess.js move
             if (!chessMove) return null;
 
-            return this.chessboard.move({
+            this.chessboard.move({
                 from: chessMove.from,
                 to: chessMove.to,
                 captured: chessMove.captured,
                 promotion: chessMove.promotion,
                 isKingsideCastle: chessMove.isKingsideCastle(),
                 isQueensideCastle: chessMove.isQueensideCastle(),
+                player: player
             });
+
+            return;
         }
 
         isGameOver() {
@@ -577,24 +563,25 @@
     }
 
     class Effects {
-        fromPiece({material, style}) {
-            let effects = [];
+        static MATERIAL = {
+            wood:  [{ source: 'material', sourceType: 'wood',  destination: 'add', operation: 'add', value: 50  }],
+            gold:  [{ source: 'material', sourceType: 'gold',  destination: 'add', operation: 'add', value: 100 }],
+        };
 
-            if (material == 'wood') {
-                effects.push({ source: 'material', sourceType: 'wood', type: 'add', value: 50 });
-            } else if (material == 'gold') {
-                effects.push({ source: 'material', sourceType: 'gold', type: 'add', value: 100 });
-            }
+        static STYLE = {
+            kiwen: [{ source: 'style',    sourceType: 'kiwen', destination: 'mult', operation: 'add', value: 2  }],
+        };
 
-            if(style == 'kiwen') {
-                effects.push({ source: 'style', sourceType: 'kiwen', type: 'mult', value: 2 });
-            }
-
-            return effects;
+        fromPiece({ material, style }, player) {
+            if (player !== 'user') return [];
+            return [
+                ...(Effects.MATERIAL[material] ?? []),
+                ...(Effects.STYLE[style]       ?? []),
+            ];
         }
     }
     
-    const gameOrientation = 'white';//Math.random() < 0.5 ? 'white' : 'black';
+    const gameOrientation = 'white';
     const effects = new Effects();
     const chessboard = new Chessboard();
     const chessSet = new ChessSet();
@@ -606,10 +593,12 @@
         renderPiece: piece => svgTheme.render(piece)
     });
 
-    chessGame.on('move', ({ piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion }) => {
+    chessGame.on('move', ({ piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion, player }) => {
         
-        const effect = effects.fromPiece(piece)
+        const effect = effects.fromPiece(piece, player)
         
+        console.log(effect)
+
         chessBoardUI.queueMove(piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, !!promotion, effect);
     });
 
@@ -630,8 +619,7 @@
         chessGame.reset();
 
         chessSet.shufflePieces();
-        chessboard.setPieces(chessSet.pieces);
-        chessGame.setFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+        chessGame.setPiecesFromFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', chessSet.getPieces());
         chessBoardUI.initBoard(chessboard.getState());
 
         console.log(chessGame)
@@ -647,15 +635,31 @@
 
         const moves = chessGame.moves({ verbose: true });
         const pickedMove = moves[Math.floor(Math.random() * moves.length)];
-        
-        chessGame.move(pickedMove);
+
+        chessGame.move(pickedMove, 'user');
 
         if (chessGame.isGameOver()) return;
 
         const results = await engine.search({ fen: chessGame.fen(), movetime: 200 });
         if (!results) return;
 
-        chessGame.move(results[0].move);
+        chessGame.move(results[0].move, 'cpu');
+    }
+
+    async function autoMove() {
+        if (chessGame.isGameOver()) return;
+
+        let results = await engine.search({ fen: chessGame.fen(), movetime: 100 });
+        if (!results) return;
+
+        chessGame.move(results[0].move, 'auto-user');
+
+        if (chessGame.isGameOver()) return;
+
+        results = await engine.search({ fen: chessGame.fen(), movetime: 100 });
+        if (!results) return;
+
+        chessGame.move(results[0].move, 'cpu');
     }
 
     function addRandomPieceToCollection() {
@@ -673,17 +677,13 @@
         });
         chessSet.addPieceObject(piece);
     }
-
-    function logFen() {
-        console.log(chessGame.fen());
-    }
 </script>
 
     <div>
         <button onclick="ResetChessboard()">Reset</button>
         <button onclick="randomMove()">Random move</button>
+        <button onclick="autoMove()">Auto move</button>
         <button onclick="addRandomPieceToCollection()">Add random piece</button>
-         <button onclick="logFen()">Log fen</button>
     </div>
 
 </body>
