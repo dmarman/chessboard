@@ -400,7 +400,9 @@
             this.boardElement.appendChild(popup);
             popup.animate([
                 { transform: 'translateX(-50%) translateY(-140%)', opacity: 1, letterSpacing: '-0.4em' },
+                { transform: 'translateX(-50%) translateY(-140%)', opacity: 1, letterSpacing: '0.1em'  },
                 { transform: 'translateX(-50%) translateY(-140%)', opacity: 1 },
+                { transform: 'translateX(-50%) translateY(-140%)', opacity: 0 },
             ], { duration: this._shakeMs, easing: 'ease-out', fill: 'forwards' }).finished.then(() => popup.remove());
         }
 
@@ -573,8 +575,41 @@
         }
     }
     
+    class ScoreEngine {
+        constructor() {
+            this.score = 0;
+            this._listeners = {};
+        }
+
+        on(event, fn) {
+            (this._listeners[event] ??= []).push(fn);
+        }
+
+        emit(event, data) {
+            (this._listeners[event] ?? []).forEach(fn => fn(data));
+        }
+
+        reset() {
+            this.score = 0;
+            this.emit('reset', { score: 0 });
+        }
+
+        applyEffects(effects) {
+            if (!effects.length) return null;
+
+            const base = effects.filter(e => e.destination === 'add' ).reduce((s, e) => s + e.value, 0);
+            const mult = effects.filter(e => e.destination === 'mult').reduce((m, e) => m + e.value, 1);
+            const gained = base * mult;
+
+            this.score += gained;
+            this.emit('score', { gained, total: this.score, effects });
+            return gained;
+        }
+    }
+
     const gameOrientation = 'white';
     const effects = new Effects();
+    const scoreEngine = new ScoreEngine();
     const chessboard = new Chessboard();
     const chessSet = new ChessSet();
     const chessGame = new ChessGame(chessboard);
@@ -586,13 +621,12 @@
     });
 
     chessGame.on('move', ({ piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion, player }) => {
-        
-        const effect = effects.fromPiece(piece, player)
-        
-        console.log(effect)
-
-        chessBoardUI.queueMove(piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, !!promotion, effect);
+        const pieceEffects = effects.fromPiece(piece, player);
+        scoreEngine.applyEffects(pieceEffects);
+        chessBoardUI.queueMove(piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, !!promotion, pieceEffects);
     });
+
+    scoreEngine.on('score', score => console.log(score))
 
     chessSet.addPieces([
         //'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P',
@@ -609,12 +643,11 @@
 
     async function resetChessboard() {
         chessGame.reset();
+        scoreEngine.reset();
 
         chessSet.shufflePieces();
         chessGame.setPiecesFromFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', chessSet.getPieces());
         chessBoardUI.initBoard(chessboard.getState());
-
-        console.log(chessGame)
 
         if(chessBoardUI._orientation === 'black') {
             const results = await engine.search({ fen: chessGame.fen(), movetime: 100 }); 
