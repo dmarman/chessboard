@@ -8,3 +8,5 @@ choose the next movement based on a limited set of engine moves. Not implemented
 
 I know everything is one file now, but i will fix that soon. 
 The important thing is everything is in its own classe and we keep concerns decoupled and clean code.
+
+Do not delete comments in the code

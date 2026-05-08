@@ -124,31 +124,44 @@
     class PngPieceTheme {
         constructor(spriteMap = {}) {
             this._sprites = {
-                'p': 'sprites/p.png',
-                'b': 'sprites/b.png',
-                'r': 'sprites/r.png',
-                'n': 'sprites/n.png',
-                'q': 'sprites/q.png',
-                'k': 'sprites/k.png',
+                'p': 'sprites/standard/bp.png',
+                'b': 'sprites/standard/bb.png',
+                'r': 'sprites/standard/br.png',
+                'n': 'sprites/standard/bn.png',
+                'q': 'sprites/standard/bq.png',
+                'k': 'sprites/standard/bk.png',
 
-                'P': 'sprites/pw.png',
-                'B': 'sprites/bw.png',
-                'R': 'sprites/rw.png',
-                'N': 'sprites/nw.png',
-                'Q': 'sprites/qw.png',
-                'K': 'sprites/kw.png',
+                'P': 'sprites/standard/wp.png',
+                'B': 'sprites/standard/wb.png',
+                'R': 'sprites/standard/wr.png',
+                'N': 'sprites/standard/wn.png',
+                'Q': 'sprites/standard/wq.png',
+                'K': 'sprites/standard/wk.png',
             }
         }
 
         render(piece) {
             const path = this._sprites[piece.type];
-            if (!path) return null;
-            const holo = piece.modifiers?.has('holographic')
-                ? `<div class="holo-overlay" style="--sprite:url(${path})"></div>`
-                : '';
-            return `<div class="piece-modifier-wrapper">
+            if (!path) return '';
+            const sprite = `style="--sprite:url(${path})"`;
+            const OVERLAYS = {
+                holographic: 'holo-overlay',
+                metallic:    'metal-overlay',
+                shine:       'shine-overlay',
+                neon:        'neon-tint',
+                glass:       'glass-overlay',
+            };
+            const overlays = Object.entries(OVERLAYS)
+                .filter(([mod]) => piece.modifiers?.has(mod))
+                .map(([, cls]) => `<div class="${cls}" ${sprite}></div>`)
+                .join('');
+            const neonClass = piece.modifiers?.has('neon') ? 'neon' : '';
+            const glassClass = piece.modifiers?.has('glass') ? 'glass-tint' : '';
+            const colorClass = piece.type === piece.type.toLowerCase() ? 'piece-black' : 'piece-white';
+
+            return `<div class="piece-modifier-wrapper ${neonClass} ${glassClass} ${colorClass}">
                 <img src="${path}" alt="${piece.type}" draggable="false">
-                ${holo}
+                ${overlays}
             </div>`;
         }
     }
@@ -383,12 +396,35 @@
                 ${b} .piece svg { width: 100%; height: 100%; }
                 ${b} .piece img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
                 ${b} .piece-modifier-wrapper { position: relative; width: 100%; height: 100%; }
-                ${b} .piece-modifier-wrapper img { position: absolute; inset: 0; }
+                ${b} .piece-modifier-wrapper img {
+                        position: absolute;
+                        inset: 0;
+                        // filter: drop-shadow(2px 4px 6px black);
+                }
+
+                ${b} .piece-white .holo-overlay { mix-blend-mode: multiply; }
+                ${b} .piece-black .holo-overlay { mix-blend-mode: color; }
                 ${b} .holo-overlay {
                     position: absolute; inset: 0;
-                    background: linear-gradient(135deg,
-                        hsl(0,100%,65%), hsl(60,100%,65%), hsl(120,100%,65%),
-                        hsl(180,100%,65%), hsl(240,100%,65%), hsl(300,100%,65%), hsl(360,100%,65%)
+                    background-image: linear-gradient(
+                        140deg,
+                        hsl(186deg 89% 65%) 0%,
+                        hsl(207deg 84% 70%) 15%,
+                        hsl(227deg 80% 75%) 22%,
+                        hsl(248deg 77% 80%) 28%,
+                        hsl(268deg 72% 85%) 33%,
+                        hsl(248deg 77% 78%) 37%,
+                        hsl(229deg 82% 72%) 42%,
+                        hsl(209deg 86% 66%) 46%,
+                        hsl(189deg 91% 60%) 50%,
+                        hsl(209deg 90% 65%) 54%,
+                        hsl(230deg 89% 69%) 58%,
+                        hsl(250deg 88% 74%) 63%,
+                        hsl(271deg 87% 79%) 67%,
+                        hsl(250deg 87% 76%) 72%,
+                        hsl(230deg 86% 74%) 78%,
+                        hsl(210deg 85% 71%) 85%,
+                        hsl(189deg 85% 69%) 100%
                     );
                     -webkit-mask-image: var(--sprite);
                     mask-image: var(--sprite);
@@ -398,13 +434,160 @@
                     mask-repeat: no-repeat;
                     -webkit-mask-position: center;
                     mask-position: center;
-                    mix-blend-mode: color;
-                    animation: holo 4s linear infinite;
+                    background-size: 200% 200%;
+                    animation: holo 5s ease-in-out infinite;
                     pointer-events: none;
                 }
                 @keyframes holo {
-                    from { filter: hue-rotate(0deg) brightness(1.3); }
-                    to   { filter: hue-rotate(360deg) brightness(1.3); }
+                    0%   { background-position: 0% 0%;     filter: brightness(1) saturate(1.5); }
+                    50%  { background-position: 100% 100%; filter: brightness(1.5) saturate(1.5); }
+                    100% { background-position: 0% 0%;     filter: brightness(1) saturate(1.5); }
+                }
+                @keyframes neonPulse {
+                    0%, 100% {
+                        filter: drop-shadow(0 0 1px #00ff00) drop-shadow(0 0 2px #00ff00) drop-shadow(0 0 3px #00aa00)
+                    }
+                    50% {
+                        filter: drop-shadow(0 0 2px #ffff00) drop-shadow(0 0 3px #ffff00) drop-shadow(0 0 4px #00ff00) drop-shadow(0 0 5px #00ff00)
+                    }
+                }
+                ${b} .piece-modifier-wrapper.neon img {
+                    animation: neonPulse 5s ease-in-out infinite;
+                }
+                ${b} .neon-tint {
+                    position: absolute; inset: 0;
+                    background: #00ff00;
+                    -webkit-mask-image: var(--sprite);
+                    mask-image: var(--sprite);
+                    -webkit-mask-size: contain;
+                    mask-size: contain;
+                    -webkit-mask-repeat: no-repeat;
+                    mask-repeat: no-repeat;
+                    -webkit-mask-position: center;
+                    mask-position: center;
+                    mix-blend-mode: lighten;
+                    opacity: 0.6;
+                    pointer-events: none;
+                }
+
+                ${b} .glass-tint img {
+                    opacity: 0.3;
+                    filter: blur(2px);
+                }
+
+                ${b} .glass-overlay {
+                    position: absolute;
+                    inset: 0;
+                    background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(200,230,255,0.4) 50%, rgba(255,255,255,0.6) 100%);
+                    -webkit-mask-image: var(--sprite);
+                    mask-image: var(--sprite);
+                    -webkit-mask-size: contain;
+                    mask-size: contain;
+                    -webkit-mask-repeat: no-repeat;
+                    mask-repeat: no-repeat;
+                    -webkit-mask-position: center;
+                    mask-position: center;
+                    mix-blend-mode: overlay;
+                    pointer-events: none;
+                    mix-blend-mode: difference;
+                    filter: drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white);
+                }
+
+                @keyframes shine {
+                    0%   { background-position: 30% 0; }
+                    50%  { background-position: 80% 0; }
+                    100% { background-position: 30% 0; }
+                }
+
+                ${b} .piece-white .shine-overlay {
+                    mix-blend-mode: hard-light;
+                }
+                ${b} .piece-black .shine-overlay {
+                    mix-blend-mode: overlay;
+                }
+                ${b} .shine-overlay {
+                    position: absolute; inset: 0;
+                    background-image: linear-gradient(
+                        -130deg,
+                        transparent 45%,
+                        rgba(255,255,255,1) 50%,
+                        transparent 55%
+                    );
+                    background-color:#8d8d8d;
+                    background-size: 300% 100%;
+                    background-position: -150% 0;
+                    -webkit-mask-image: var(--sprite);
+                    mask-image: var(--sprite);
+                    -webkit-mask-size: contain;
+                    mask-size: contain;
+                    -webkit-mask-repeat: no-repeat;
+                    mask-repeat: no-repeat;
+                    -webkit-mask-position: center;
+                    mask-position: center;
+                    animation: shine 5s ease-in-out infinite;
+                    pointer-events: none;
+                }
+                @property --metal-angle {
+                    syntax: '<angle>';
+                    initial-value: 0deg;
+                    inherits: false;
+                }
+                @keyframes metalShimmer {
+                    0%   { --metal-angle: 0deg; }
+                    50%  { --metal-angle: 18deg; }
+                    100% { --metal-angle: 0deg; }
+                }
+
+                ${b} .piece-white .metal-overlay { mix-blend-mode: multiply; }
+                ${b} .piece-black .metal-overlay { mix-blend-mode: overlay; }
+                ${b} .metal-overlay {
+                    position: absolute; inset: 0;
+                    background: conic-gradient(from var(--metal-angle) at 50% 50%,
+                        #E4E7F7 0%,
+                        #FFFFFF00 5%,
+                        #FFFFFF00 20%,
+                        #ECEEF8 25%,
+                        #FFFFFF00 30%,
+                        #FFFFFF00 40%,
+                        #E4E7F7 45%,
+                        #FFFFFF00 50%,
+                        #FFFFFF00 70%,
+                        #ECEEF8 75%,
+                        #FFFFFF00 80%,
+                        #FFFFFF00 95%,
+                        #E4E7F7 100%),
+                    conic-gradient(from 0deg at 50% 50%,
+                        #ecececAA 0%,
+                        #bebebeAA 5%,
+                        #FFFFFFAA 10%,
+                        #e0e0e0AA 15%,
+                        #8c8c8cAA 20%,
+                        #b5b5b5AA 25%,
+                        #d8d8d8AA 30%,
+                        #c2c2c2AA 35%,
+                        #d8d8d8AA 40%,
+                        #acababAA 45%,
+                        #f1f1f1AA 50%,
+                        #c6c6c6AA 55%,
+                        #dadadaAA 60%,
+                        #dcdcdcAA 70%,
+                        #d9d9d9AA 75%,
+                        #aeaeaeAA 80%,
+                        #f9f9f9AA 85%,
+                        #e7e7e7AA 90%,
+                        #D3D7E9AA 95%,
+                        #e9e9e9AA 100%);
+                    -webkit-mask-image: var(--sprite);
+                    mask-image: var(--sprite);
+                    -webkit-mask-size: contain;
+                    mask-size: contain;
+                    -webkit-mask-repeat: no-repeat;
+                    mask-repeat: no-repeat;
+                    -webkit-mask-position: center;
+                    mask-position: center;
+                    filter: saturate(3) brightness(1);
+                    animation: metalShimmer 3s ease-in-out infinite;
+                    pointer-events: none;
                 }
 
             `;
@@ -458,7 +641,7 @@
             el.innerHTML = this._renderPiece(piece);
             this.piecesLayer.appendChild(el);
             this.pieceElements.set(this._posKey(row, col), el);
-            //this._animateFloat(el);
+            this._animateFloat(el);
             return el;
         }
 
@@ -534,12 +717,20 @@
 
         _animateFloat(el) {
             el._floatAnimation?.cancel();
-            const delay = -(Math.random() * 3000);
+            const delay = -(Math.random() * 5000);
             el._floatAnimation = el.animate([
-                { filter: 'drop-shadow(4px 4px 0.5px rgba(0,0,0,0.2))', transform: 'translateY(0px)' },
-                { filter: 'drop-shadow(4px 8px 0.5px rgba(0,0,0,0.2))', transform: 'translateY(-4px)', offset: 0.5 },
-                { filter: 'drop-shadow(4px 4px 0.5px rgba(0,0,0,0.2))', transform: 'translateY(0px)' },
-            ], { duration: 3000, easing: 'ease-in-out', iterations: Infinity, delay });
+                { filter: 'drop-shadow(4px 4px 3px rgba(0,0,0,0.6))', transform: 'translateY(0px)' },
+                { filter: 'drop-shadow(4px 8px 3px rgba(0,0,0,0.6))', transform: 'translateY(-4px)', offset: 0.5 },
+                { filter: 'drop-shadow(4px 4px 3px rgba(0,0,0,0.6))', transform: 'translateY(0px)' },
+            ], { duration: 5000, easing: 'ease-in-out', iterations: Infinity, delay });
+            const holo = el.querySelector('.holo-overlay');
+            if (holo) holo.style.animationDelay = `${delay}ms`;
+            const shine = el.querySelector('.shine-overlay');
+            if (shine) shine.style.animationDelay = `${delay}ms`;
+            const img = el.querySelector('img');
+            if (img) img.style.animationDelay = `${delay}ms`;
+            const metal = el.querySelector('.metal-overlay');
+            if (metal) metal.style.animationDelay = `${-(Math.random() * 3000)}ms`;
         }
 
         _animateThrow(el, dx, dy) {
@@ -795,15 +986,26 @@
     scoreEngine.on('score', score => console.log(score))
 
     chessSet.addPieces([
-        //'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P',
-        'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R',
+        'P', 'P', 'P', 'P', 'P', 'P', 'P',
         'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p',
         'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'
-    ], {style: 'pixel'});
+    ], {modifier: 'glass'});
 
     chessSet.addPieces([
-        'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P',
-    ], {modifier: 'holographic'});
+         'K', 'B', 'N', 'R',
+    ], {modifier: 'glass'});
+
+    chessSet.addPieces([
+        'R', 'N', 'B', 'Q',
+    ], {modifier: 'glass'});
+
+    chessSet.addPieces([
+        'P'
+    ], {modifier: 'neon'});
+
+    chessSet.addPieces([
+        'P', 'P', 'P', 'P',
+    ], {modifier: 'shine'});
 
     resetChessboard();
 
