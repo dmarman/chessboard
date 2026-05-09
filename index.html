@@ -1,6 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="https://cdn.jsdelivr.net/npm/chess.js"></script>
 <script src="stockfish-engine.js"></script>
 <script src="background.js"></script>
@@ -10,9 +12,8 @@
     src: url('fonts/m6x11.ttf') format('truetype');
   }
 
-  * { font-family: 'm6x11', sans-serif; }
-
-  body { display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+  body { font-family: 'm6x11', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+  button, input, select, textarea { font: inherit; }
 
   #bg-canvas {
     position: fixed;
@@ -24,7 +25,6 @@
   .score-popup {
     position: absolute;
     pointer-events: none;
-    font-family: 'm6x11', sans-serif;
     font-weight: 900;
     font-size: 32px;
     text-shadow: 0 2px 6px rgba(0,0,0,0.7);
@@ -57,6 +57,8 @@
         scoreNegative:        '#f87171',
     };
 
+    const PLAYER = { USER: 'user', CPU: 'cpu', AUTO: 'auto-user' };
+
     document.body.style.background = THEME.pageBg;
 
     class Piece {
@@ -65,59 +67,11 @@
             this.name = options.name || null;
             this.material = options.material || 'none';
             this.style = options.style || 'classic';
-            this.modifiers = new Set(options.modifier ? [options.modifier] : options.modifiers ?? []);
-
-            this.onBoard = false;
+            this.modifiers = new Set(options.modifiers ?? []);
         }
 
         color() {
             return this.type === this.type.toUpperCase() ? 'white' : 'black';
-        }
-    }
-
-    class SvgPieceTheme {
-        constructor() {
-            this._styles = {
-                classic: {
-                    P: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><path d="m 22.5,9 c -2.21,0 -4,1.79 -4,4 0,0.89 0.29,1.71 0.78,2.38 C 17.33,16.5 16,18.59 16,21 c 0,2.03 0.94,3.84 2.41,5.03 C 15.41,27.09 11,31.58 11,39.5 H 34 C 34,31.58 29.59,27.09 26.59,26.03 28.06,24.84 29,23.03 29,21 29,18.59 27.67,16.5 25.72,15.38 26.21,14.71 26.5,13.89 26.5,13 c 0,-2.21 -1.79,-4 -4,-4 z" style="fill:{{FILL}};stroke:{{STROKE}};stroke-width:1.5;stroke-linecap:round;stroke-linejoin:miter"/></svg>`,
-                    R: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g style="fill:{{FILL}};stroke:{{STROKE}};stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round"><path d="M 9,39 L 36,39 L 36,36 L 9,36 L 9,39 z" style="stroke-linecap:butt"/><path d="M 12,36 L 12,32 L 33,32 L 33,36 L 12,36 z" style="stroke-linecap:butt"/><path d="M 11,14 L 11,9 L 15,9 L 15,11 L 20,11 L 20,9 L 25,9 L 25,11 L 30,11 L 30,9 L 34,9 L 34,14" style="stroke-linecap:butt"/><path d="M 34,14 L 31,17 L 14,17 L 11,14"/><path d="M 31,17 L 31,29.5 L 14,29.5 L 14,17" style="stroke-linecap:butt;stroke-linejoin:miter"/><path d="M 31,29.5 L 32.5,32 L 12.5,32 L 14,29.5"/><path d="M 11,14 L 34,14" style="fill:none;stroke:{{STROKE}};stroke-linejoin:miter"/></g></svg>`,
-                    N: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g style="fill:none;stroke:{{STROKE}};stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round"><path d="M 22,10 C 32.5,11 38.5,18 38,39 L 15,39 C 15,30 25,32.5 23,18" style="fill:{{FILL}};stroke:{{STROKE}}"/><path d="M 24,18 C 24.38,20.91 18.45,25.37 16,27 C 13,29 13.18,31.34 11,31 C 9.958,30.06 12.41,27.96 11,28 C 10,28 11.19,29.23 10,30 C 9,30 5.997,31 6,26 C 6,24 12,14 12,14 C 12,14 13.89,12.1 14,10.5 C 13.27,9.506 13.5,8.5 13.5,7.5 C 14.5,6.5 16.5,10 16.5,10 L 18.5,10 C 18.5,10 19.28,8.008 21,7 C 22,7 22,10 22,10" style="fill:{{FILL}};stroke:{{STROKE}}"/><path d="M 9.5 25.5 A 0.5 0.5 0 1 1 8.5,25.5 A 0.5 0.5 0 1 1 9.5 25.5 z" style="fill:{{STROKE}};stroke:{{STROKE}}"/><path d="M 15 15.5 A 0.5 1.5 0 1 1 14,15.5 A 0.5 1.5 0 1 1 15 15.5 z" transform="matrix(0.866,0.5,-0.5,0.866,9.693,-5.173)" style="fill:{{STROKE}};stroke:{{STROKE}}"/></g></svg>`,
-                    B: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g style="fill:none;stroke:{{STROKE}};stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round"><g style="fill:{{FILL}};stroke:{{STROKE}};stroke-linecap:butt"><path d="M 9,36 C 12.39,35.03 19.11,36.43 22.5,34 C 25.89,36.43 32.61,35.03 36,36 C 36,36 37.65,36.54 39,38 C 38.32,38.97 37.35,38.99 36,38.5 C 32.61,37.53 25.89,38.96 22.5,37.5 C 19.11,38.96 12.39,37.53 9,38.5 C 7.65,38.99 6.68,38.97 6,38 C 7.35,36.54 9,36 9,36 z"/><path d="M 15,32 C 17.5,34.5 27.5,34.5 30,32 C 30.5,30.5 30,30 30,30 C 30,27.5 27.5,26 27.5,26 C 33,24.5 33.5,14.5 22.5,10.5 C 11.5,14.5 12,24.5 17.5,26 C 17.5,26 15,27.5 15,30 C 15,30 14.5,30.5 15,32 z"/><path d="M 25 8 A 2.5 2.5 0 1 1 20,8 A 2.5 2.5 0 1 1 25 8 z"/></g><path d="M 17.5,26 L 27.5,26 M 15,30 L 30,30 M 22.5,15.5 L 22.5,20.5 M 20,18 L 25,18" style="fill:none;stroke:{{STROKE}};stroke-linejoin:miter"/></g></svg>`,
-                    Q: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g style="fill:{{FILL}};stroke:{{STROKE}};stroke-width:1.5;stroke-linejoin:round"><path d="M 9,26 C 17.5,24.5 30,24.5 36,26 L 38.5,13.5 L 31,25 L 30.7,10.9 L 25.5,24.5 L 22.5,10 L 19.5,24.5 L 14.3,10.9 L 14,25 L 6.5,13.5 L 9,26 z"/><path d="M 9,26 C 9,28 10.5,28 11.5,30 C 12.5,31.5 12.5,31 12,33.5 C 10.5,34.5 11,36 11,36 C 9.5,37.5 11,38.5 11,38.5 C 17.5,39.5 27.5,39.5 34,38.5 C 34,38.5 35.5,37.5 34,36 C 34,36 34.5,34.5 33,33.5 C 32.5,31 32.5,31.5 33.5,30 C 34.5,28 36,28 36,26 C 27.5,24.5 17.5,24.5 9,26 z"/><path d="M 11.5,30 C 15,29 30,29 33.5,30" style="fill:none"/><path d="M 12,33.5 C 18,32.5 27,32.5 33,33.5" style="fill:none"/><circle cx="6" cy="12" r="2"/><circle cx="14" cy="9" r="2"/><circle cx="22.5" cy="8" r="2"/><circle cx="31" cy="9" r="2"/><circle cx="39" cy="12" r="2"/></g></svg>`,
-                    K: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g style="fill:none;stroke:{{STROKE}};stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round"><path d="M 22.5,11.63 L 22.5,6" style="stroke-linejoin:miter"/><path d="M 20,8 L 25,8" style="stroke-linejoin:miter"/><path d="M 22.5,25 C 22.5,25 27,17.5 25.5,14.5 C 25.5,14.5 24.5,12 22.5,12 C 20.5,12 19.5,14.5 19.5,14.5 C 18,17.5 22.5,25 22.5,25" style="fill:{{FILL}}"/><path d="M 12.5,37 C 18,40.5 27,40.5 32.5,37 L 32.5,30 C 32.5,30 41.5,25.5 38.5,19.5 C 34.5,13 25,16 22.5,23.5 L 22.5,27 L 22.5,23.5 C 20,16 10.5,13 6.5,19.5 C 3.5,25.5 12.5,30 12.5,30 L 12.5,37" style="fill:{{FILL}}"/><path d="M 12.5,30 C 18,27 27,27 32.5,30" style="fill:none"/><path d="M 12.5,33.5 C 18,30.5 27,30.5 32.5,33.5" style="fill:none"/><path d="M 12.5,37 C 18,34 27,34 32.5,37" style="fill:none"/></g></svg>`,
-                },
-                pixel: {
-                    P: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><path d="m 22.5,9 c -2.21,0 -4,1.79 -4,4 0,0.89 0.29,1.71 0.78,2.38 C 17.33,16.5 16,18.59 16,21 c 0,2.03 0.94,3.84 2.41,5.03 C 15.41,27.09 11,31.58 11,39.5 H 34 C 34,31.58 29.59,27.09 26.59,26.03 28.06,24.84 29,23.03 29,21 29,18.59 27.67,16.5 25.72,15.38 26.21,14.71 26.5,13.89 26.5,13 c 0,-2.21 -1.79,-4 -4,-4 z" style="fill:{{FILL}};stroke:{{STROKE}};stroke-width:1.5;stroke-linecap:round;stroke-linejoin:miter"/></svg>`,
-                    R: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g style="fill:{{FILL}};stroke:{{STROKE}};stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round"><path d="M 9,39 L 36,39 L 36,36 L 9,36 L 9,39 z" style="stroke-linecap:butt"/><path d="M 12,36 L 12,32 L 33,32 L 33,36 L 12,36 z" style="stroke-linecap:butt"/><path d="M 11,14 L 11,9 L 15,9 L 15,11 L 20,11 L 20,9 L 25,9 L 25,11 L 30,11 L 30,9 L 34,9 L 34,14" style="stroke-linecap:butt"/><path d="M 34,14 L 31,17 L 14,17 L 11,14"/><path d="M 31,17 L 31,29.5 L 14,29.5 L 14,17" style="stroke-linecap:butt;stroke-linejoin:miter"/><path d="M 31,29.5 L 32.5,32 L 12.5,32 L 14,29.5"/><path d="M 11,14 L 34,14" style="fill:none;stroke:{{STROKE}};stroke-linejoin:miter"/></g></svg>`,
-                    N: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g style="fill:none;stroke:{{STROKE}};stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round"><path d="M 22,10 C 32.5,11 38.5,18 38,39 L 15,39 C 15,30 25,32.5 23,18" style="fill:{{FILL}};stroke:{{STROKE}}"/><path d="M 24,18 C 24.38,20.91 18.45,25.37 16,27 C 13,29 13.18,31.34 11,31 C 9.958,30.06 12.41,27.96 11,28 C 10,28 11.19,29.23 10,30 C 9,30 5.997,31 6,26 C 6,24 12,14 12,14 C 12,14 13.89,12.1 14,10.5 C 13.27,9.506 13.5,8.5 13.5,7.5 C 14.5,6.5 16.5,10 16.5,10 L 18.5,10 C 18.5,10 19.28,8.008 21,7 C 22,7 22,10 22,10" style="fill:{{FILL}};stroke:{{STROKE}}"/><path d="M 9.5 25.5 A 0.5 0.5 0 1 1 8.5,25.5 A 0.5 0.5 0 1 1 9.5 25.5 z" style="fill:{{STROKE}};stroke:{{STROKE}}"/><path d="M 15 15.5 A 0.5 1.5 0 1 1 14,15.5 A 0.5 1.5 0 1 1 15 15.5 z" transform="matrix(0.866,0.5,-0.5,0.866,9.693,-5.173)" style="fill:{{STROKE}};stroke:{{STROKE}}"/></g></svg>`,
-                    B: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g style="fill:none;stroke:{{STROKE}};stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round"><g style="fill:{{FILL}};stroke:{{STROKE}};stroke-linecap:butt"><path d="M 9,36 C 12.39,35.03 19.11,36.43 22.5,34 C 25.89,36.43 32.61,35.03 36,36 C 36,36 37.65,36.54 39,38 C 38.32,38.97 37.35,38.99 36,38.5 C 32.61,37.53 25.89,38.96 22.5,37.5 C 19.11,38.96 12.39,37.53 9,38.5 C 7.65,38.99 6.68,38.97 6,38 C 7.35,36.54 9,36 9,36 z"/><path d="M 15,32 C 17.5,34.5 27.5,34.5 30,32 C 30.5,30.5 30,30 30,30 C 30,27.5 27.5,26 27.5,26 C 33,24.5 33.5,14.5 22.5,10.5 C 11.5,14.5 12,24.5 17.5,26 C 17.5,26 15,27.5 15,30 C 15,30 14.5,30.5 15,32 z"/><path d="M 25 8 A 2.5 2.5 0 1 1 20,8 A 2.5 2.5 0 1 1 25 8 z"/></g><path d="M 17.5,26 L 27.5,26 M 15,30 L 30,30 M 22.5,15.5 L 22.5,20.5 M 20,18 L 25,18" style="fill:none;stroke:{{STROKE}};stroke-linejoin:miter"/></g></svg>`,
-                    Q: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g style="fill:{{FILL}};stroke:{{STROKE}};stroke-width:1.5;stroke-linejoin:round"><path d="M 9,26 C 17.5,24.5 30,24.5 36,26 L 38.5,13.5 L 31,25 L 30.7,10.9 L 25.5,24.5 L 22.5,10 L 19.5,24.5 L 14.3,10.9 L 14,25 L 6.5,13.5 L 9,26 z"/><path d="M 9,26 C 9,28 10.5,28 11.5,30 C 12.5,31.5 12.5,31 12,33.5 C 10.5,34.5 11,36 11,36 C 9.5,37.5 11,38.5 11,38.5 C 17.5,39.5 27.5,39.5 34,38.5 C 34,38.5 35.5,37.5 34,36 C 34,36 34.5,34.5 33,33.5 C 32.5,31 32.5,31.5 33.5,30 C 34.5,28 36,28 36,26 C 27.5,24.5 17.5,24.5 9,26 z"/><path d="M 11.5,30 C 15,29 30,29 33.5,30" style="fill:none"/><path d="M 12,33.5 C 18,32.5 27,32.5 33,33.5" style="fill:none"/><circle cx="6" cy="12" r="2"/><circle cx="14" cy="9" r="2"/><circle cx="22.5" cy="8" r="2"/><circle cx="31" cy="9" r="2"/><circle cx="39" cy="12" r="2"/></g></svg>`,
-                    K: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45"><g style="fill:none;stroke:{{STROKE}};stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round"><path d="M 22.5,11.63 L 22.5,6" style="stroke-linejoin:miter"/><path d="M 20,8 L 25,8" style="stroke-linejoin:miter"/><path d="M 22.5,25 C 22.5,25 27,17.5 25.5,14.5 C 25.5,14.5 24.5,12 22.5,12 C 20.5,12 19.5,14.5 19.5,14.5 C 18,17.5 22.5,25 22.5,25" style="fill:{{FILL}}"/><path d="M 12.5,37 C 18,40.5 27,40.5 32.5,37 L 32.5,30 C 32.5,30 41.5,25.5 38.5,19.5 C 34.5,13 25,16 22.5,23.5 L 22.5,27 L 22.5,23.5 C 20,16 10.5,13 6.5,19.5 C 3.5,25.5 12.5,30 12.5,30 L 12.5,37" style="fill:{{FILL}}"/><path d="M 12.5,30 C 18,27 27,27 32.5,30" style="fill:none"/><path d="M 12.5,33.5 C 18,30.5 27,30.5 32.5,33.5" style="fill:none"/><path d="M 12.5,37 C 18,34 27,34 32.5,37" style="fill:none"/></g></svg>`,
-                },
-                kiwen: {
-                    N: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 260"><path fill="#262626" fill-rule="evenodd" d="M53.497 15.398c2.445 14.335 4.891 27.157 7.337 41.493-12.55-3.209-25.773-6.921-38.324-10.13 4.889 20.978 10.45 43.971 15.338 64.948-9.382 18.866-12.067 40.117-14.479 60.812-2.565 25.012-2.306 50.191-1.615 75.292h179.074l-23.693-94.764c24.95-7.914 52.056-18.195 66.855-41.148 14.213-23.62 4.73-56.346-16.374-72.685-23.889-17.612-55.593-18.223-83.928-15.094-10.74 1.051-20.974 4.338-30.677 8.921z"/><path fill="#fff" d="m74.338 40.912 10.666 41.016-40.04-12.436 15 43.02c-4.408 10.49-9.798 20.68-11.44 32.094-5.644 27.118-6.722 54.953-6.471 82.576h132.35l-17.288-69.139-28.864 3.325-2.24-18.905c28.2-3.994 56.957-10.143 81.794-24.679 11.34-6.904 24.008-17.692 22.233-32.463-.242-13.703-7.655-27.175-20.231-33.208-19.735-10.004-42.944-9.916-64.426-7.387-11.376.908-21.475 6.229-31.84 10.467z"/><path fill="#262626" fill-rule="evenodd" d="M100 96c0-9.94 7.84-18 17.5-18S135 86.06 135 96s-7.84 18-17.5 18-17.5-8.06-17.5-18m43-19.5c0-9.66 8.06-17.5 18-17.5s18 7.84 18 17.5c0 9.67-8.06 17.5-18 17.5s-18-7.83-18-17.5"/></svg>`,
-                }
-            };
-            this._materials = {
-                plastic: { fill: THEME.materialPlasticFill, stroke: THEME.materialPlasticStroke },
-                wood:    { fill: THEME.materialWoodFill,    stroke: THEME.materialWoodStroke    },
-                gold:    { fill: THEME.materialGoldFill,    stroke: THEME.materialGoldStroke    },
-            };
-        }
-
-        _resolveColors(piece) {
-            if (this._materials[piece.material]) return this._materials[piece.material];
-            const isBlack = piece.type === piece.type.toLowerCase();
-            return { fill: isBlack ? THEME.pieceBlackFill : THEME.pieceWhiteFill, stroke: isBlack ? THEME.pieceBlackStroke : THEME.pieceWhiteStroke };
-        }
-
-        render(piece) {
-            const styleName = piece.style || 'classic';
-            const templates = this._styles[styleName] ?? this._styles.classic;
-            const template = templates[piece.type.toUpperCase()];
-            if (!template) return '';
-            const { fill, stroke } = this._resolveColors(piece);
-            return template.replace(/{{FILL}}/g, fill).replace(/{{STROKE}}/g, stroke);
         }
     }
 
@@ -178,44 +132,30 @@
             const path = family[piece.type];
             if (!path) return '';
             const sprite = `style="--sprite:url(${path})"`;
-            const OVERLAYS = {
-                holo:        'holo-overlay',
-                poly:        'poly-overlay',
-                metal:       'metal-overlay',
-                shine:       'shine-overlay',
-                neon:        'neon-tint',
-                glass:       'glass-overlay',
-                gold:        'gold-overlay',
-                stripes:     'stripes-overlay',
-            };
-            const overlays = Object.entries(OVERLAYS)
+            const overlays = Object.entries(PngPieceTheme.OVERLAYS)
                 .filter(([mod]) => piece.modifiers?.has(mod))
-                .map(([, cls]) => `<div class="${cls}" ${sprite}></div>`)
+                .map(([, cls]) => `<div class="${cls}" data-sync-delay ${sprite}></div>`)
                 .join('');
             const neonClass = piece.modifiers?.has('neon') ? 'neon' : '';
             const glassClass = piece.modifiers?.has('glass') ? 'glass-tint' : '';
-            const colorClass = piece.type === piece.type.toLowerCase() ? 'piece-black' : 'piece-white';
+            const colorClass = piece.color() === 'black' ? 'piece-black' : 'piece-white';
 
             return `<div class="piece-modifier-wrapper ${neonClass} ${glassClass} ${colorClass}">
-                <img src="${path}" alt="${piece.type}" draggable="false">
+                <img src="${path}" alt="${piece.type}" draggable="false" data-sync-delay>
                 ${overlays}
             </div>`;
         }
     }
-
-    class CompositePieceTheme {
-        constructor(...themes) {
-            this._themes = themes;
-        }
-
-        render(piece) {
-            for (const theme of this._themes) {
-                const result = theme.render(piece);
-                if (result) return result;
-            }
-            return '';
-        }
-    }
+    PngPieceTheme.OVERLAYS = {
+        holo:        'holo-overlay',
+        poly:        'poly-overlay',
+        metal:       'metal-overlay',
+        shine:       'shine-overlay',
+        neon:        'neon-tint',
+        glass:       'glass-overlay',
+        gold:        'gold-overlay',
+        stripes:     'stripes-overlay',
+    };
 
     class ChessSet {
         constructor() {
@@ -278,6 +218,13 @@
         }
     }
 
+    // Shared utility: algebraic square (e.g. "e4") → [row, col] (0-indexed, row 0 = rank 8)
+    function parseChessPosition(square) {
+        const col = square.charCodeAt(0) - 97;
+        const row = 8 - parseInt(square[1]);
+        return [row, col];
+    }
+
     class Chessboard extends EventEmitter {
         constructor() {
             super();
@@ -301,17 +248,17 @@
         setPiecesFromFen(fen, pieces) {
             this.pieces = [...pieces];
             this._board = this.createBoard();
-            this.pieces.forEach(p => p.onBoard = false);
+            const consumed = new Set();
 
             const rows = fen.split(' ')[0].split('/');
             for (let i = 0; i < 8; i++) {
                 let colIndex = 0;
                 for (const char of rows[i]) {
-                    if (isNaN(char)) {
-                        const index = this.pieces.findIndex(p => p.type === char && p.onBoard === false);
+                    if (isNaN(parseInt(char))) {
+                        const index = this.pieces.findIndex((p, idx) => p.type === char && !consumed.has(idx));
                         if (index !== -1) {
                             this._board[i][colIndex] = this.pieces[index];
-                            this.pieces[index].onBoard = true;
+                            consumed.add(index);
                         }
                         colIndex++;
                     } else {
@@ -322,12 +269,10 @@
         }
 
         parsePosition(pos) {
-            const col = pos.charCodeAt(0) - 'a'.charCodeAt(0);
-            const row = 8 - parseInt(pos[1]);
-            return [row, col];
+            return parseChessPosition(pos);
         }
 
-        move({ from, to, captured: capturedType, promotion, isKingsideCastle, isQueensideCastle, player }) {
+        move({ from, to, enPassant, promotion, isKingsideCastle, isQueensideCastle, player }) {
             const [fromRow, fromCol] = this.parsePosition(from);
             const [toRow, toCol] = this.parsePosition(to);
 
@@ -356,12 +301,12 @@
             }
 
             const piece = this._board[fromRow][fromCol];
-            if (!piece) return;
+            if (!piece) throw new Error(`Chessboard.move: no piece at ${from} (${fromRow},${fromCol})`);
 
             let captured = this._board[toRow][toCol];
             let capturedRow = toRow, capturedCol = toCol;
 
-            if (capturedType && !captured) {
+            if (enPassant) {
                 // en passant: captured pawn sits on moving pawn's rank, destination file
                 captured = this._board[fromRow][toCol];
                 this._board[fromRow][toCol] = null;
@@ -398,6 +343,7 @@
             this.piecesLayer = null;
             this._queue = [];
             this._draining = false;
+            this._gen = 0;
             this._styleEl = this._injectStyles();
         }
 
@@ -436,7 +382,6 @@
                     transition: transform ${this._transitionMs}ms ease-in-out;
                     pointer-events: none;
                 }
-                ${b} .piece svg { width: 100%; height: 100%; }
                 ${b} .piece img { width: 100%; height: 100%; object-fit: contain;}
                 ${b} .piece-modifier-wrapper { position: relative; width: 100%; height: 100%; }
                 ${b} .piece-modifier-wrapper img {
@@ -721,7 +666,7 @@
                     -webkit-mask-position: center;
                     mask-position: center;
                     filter: saturate(3) brightness(1);
-                    animation: metalShimmer 3s ease-in-out infinite;
+                    animation: metalShimmer 5s ease-in-out infinite;
                     pointer-events: none;
                 }
 
@@ -761,6 +706,7 @@
         }
 
         initBoard(initialState) {
+            this._cancelAnimations();
             this.boardElement.innerHTML = '';
             this.pieceElements.clear();
 
@@ -812,18 +758,33 @@
             if (el) el.innerHTML = this._renderPiece(piece);
         }
 
-        queueMove(piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion = false, effect = null) {
-            this._queue.push({ piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion, effect });
+        queueMove(move) {
+            this._queue.push(move);
             if (!this._draining) this._drain();
         }
 
         async _drain() {
             this._draining = true;
+            const gen = this._gen;
             while (this._queue.length) {
+                if (this._gen !== gen) break;
                 const m = this._queue.shift();
-                await this._animateMove(m.piece, m.captured, m.fromRow, m.fromCol, m.toRow, m.toCol, m.capturedRow, m.capturedCol, m.promotion, m.effect);
+                try {
+                    await this._animateMove(m);
+                } catch (e) {
+                    // animation cancelled by reset → bail
+                    if (this._gen !== gen) break;
+                    throw e;
+                }
             }
             this._draining = false;
+        }
+
+        _cancelAnimations() {
+            this._queue = [];
+            this._gen++;
+            this._draining = false;
+            this.boardElement.getAnimations?.({ subtree: true }).forEach(a => a.cancel());
         }
 
         async _runSteps(el, steps) {
@@ -885,18 +846,9 @@
                 { filter: 'drop-shadow(4px 8px 3px rgba(0,0,0,0.6))', transform: 'translateY(-4px)', offset: 0.5 },
                 { filter: 'drop-shadow(4px 4px 3px rgba(0,0,0,0.6))', transform: 'translateY(0px)' },
             ], { duration: 5000, easing: 'ease-in-out', iterations: Infinity, delay });
-            const holo = el.querySelector('.holo-overlay');
-            if (holo) holo.style.animationDelay = `${delay}ms`;
-            const poly = el.querySelector('.poly-overlay');
-            if (poly) poly.style.animationDelay = `${delay}ms`;
-            const shine = el.querySelector('.shine-overlay');
-            if (shine) shine.style.animationDelay = `${delay}ms`;
-            const img = el.querySelector('img');
-            if (img) img.style.animationDelay = `${delay}ms`;
-            const metal = el.querySelector('.metal-overlay');
-            if (metal) metal.style.animationDelay = `${-(Math.random() * 3000)}ms`;
-            const gold = el.querySelector('.gold-overlay');
-            if (gold) gold.style.animationDelay = `${delay}ms`;
+            el.querySelectorAll('[data-sync-delay]').forEach(child => {
+                child.style.animationDelay = `${delay}ms`;
+            });
         }
 
         _animateThrow(el, dx, dy) {
@@ -911,17 +863,12 @@
             ], { duration: this._transitionMs/2, easing: 'ease-out', fill: 'forwards' }).finished.then(() => el.remove());
         }
 
-        _handleCaptureAndPromotion(el, piece, captured, capturedRow, capturedCol, promotion) {
+        _handleCaptureAndPromotion(el, piece, promotion) {
             if (promotion) el.innerHTML = this._renderPiece(piece);
-            if (captured && capturedRow != null) {
-                const capturedEl = this.pieceElements.get(this._posKey(capturedRow, capturedCol));
-                if (capturedEl) this.pieceElements.delete(this._posKey(capturedRow, capturedCol));
-            }
         }
 
         _squareToPixelCenter(square) {
-            const col = square.charCodeAt(0) - 97;
-            const row = 8 - parseInt(square[1]);
+            const [row, col] = parseChessPosition(square);
             const [vRow, vCol] = this._toVisual(row, col);
             const s = this.squareSize;
             return [vCol * s + s / 2, vRow * s + s / 2];
@@ -955,7 +902,7 @@
             this.boardElement.querySelectorAll('[data-arrow]').forEach(el => el.remove());
         }
 
-        async _animateMove(piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion = false, effect = null) {
+        async _animateMove({ piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion = false, effect = null }) {
             const fromKey = this._posKey(fromRow, fromCol);
             const el = this.pieceElements.get(fromKey);
             if (!el) return;
@@ -972,7 +919,7 @@
 
             await this._runSteps(el, [
                 el => this._animateSlide(el, dx, dy, vToRow, vToCol),
-                el => this._handleCaptureAndPromotion(el, piece, captured, capturedRow, capturedCol, promotion),
+                el => this._handleCaptureAndPromotion(el, piece, promotion),
                 [
                     async () => {
                         const validEffects = effect ? effect.filter(e => e.value != null) : [];
@@ -981,7 +928,12 @@
                             await this._showScoreEffect(el, e.value);
                         }
                     },
-                    () => capturedEl ? this._animateThrow(capturedEl, dx, dy) : Promise.resolve(),
+                    () => {
+                        if (!capturedEl) return Promise.resolve();
+                        // Map deletion and DOM removal co-located: no code path can delete one without the other
+                        this.pieceElements.delete(this._posKey(capturedRow, capturedCol));
+                        return this._animateThrow(capturedEl, dx, dy);
+                    },
                 ],
             ]);
 
@@ -1020,7 +972,7 @@
             this.chessboard.move({
                 from: chessMove.from,
                 to: chessMove.to,
-                captured: chessMove.captured,
+                enPassant: chessMove.isEnPassant(),
                 promotion: chessMove.promotion,
                 isKingsideCastle: chessMove.isKingsideCastle(),
                 isQueensideCastle: chessMove.isQueensideCastle(),
@@ -1046,7 +998,7 @@
             return this.chess.isCheck();
         }
 
-        get(square) {
+        getRawPiece(square) {
             return this.chess.get(square);
         }
 
@@ -1076,8 +1028,7 @@
             kiwen: [{ source: 'style',    sourceType: 'kiwen', destination: 'mult', operation: 'add', value: 2  }],
         };
 
-        fromPiece({ material, style, type }, player) {
-            if (player !== 'user') return [];
+        static fromPiece({ material, style, type }) {
             return [
                 ...(Effects.PIECE[type.toLowerCase()] ?? []),
                 ...(Effects.MATERIAL[material] ?? []),
@@ -1111,25 +1062,22 @@
     }
 
     const gameOrientation = 'white';
-    const effects = new Effects();
     const scoreEngine = new ScoreEngine();
     const chessboard = new Chessboard();
     const chessSet = new ChessSet();
     const chessGame = new ChessGame(chessboard);
-    const svgTheme = new SvgPieceTheme();
     const pngTheme = new PngPieceTheme();
-    const pieceTheme = new CompositePieceTheme(pngTheme, svgTheme);
     const engine = new StockfishEngine();
     const chessBoardUI = new ChessboardUI('chessboard', {
         orientation: gameOrientation,
-        renderPiece: piece => pieceTheme.render(piece)
+        renderPiece: piece => pngTheme.render(piece)
     });
 
-    chessGame.on('move', ({ piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion, player }) => {
-        const pieceEffects = effects.fromPiece(piece, player);
+    chessGame.on('move', move => {
+        const pieceEffects = move.player === PLAYER.USER ? Effects.fromPiece(move.piece) : [];
         scoreEngine.applyEffects(pieceEffects);
 
-        chessBoardUI.queueMove(piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, !!promotion, pieceEffects);
+        chessBoardUI.queueMove({ ...move, promotion: !!move.promotion, effect: pieceEffects });
     });
 
     scoreEngine.on('score', score => console.log(score))
@@ -1139,9 +1087,9 @@
         'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p',
         'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r',
         'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R',
-    ], {modifiers: [], style: 'checkers'});
+    ], {modifiers: ['holo', 'metal'], style: 'checkers'});
 
-    resetChessboard();
+    (async () => { await resetChessboard(); })();
 
     async function resetChessboard() {
         chessGame.reset();
@@ -1165,46 +1113,36 @@
         const moves = chessGame.moves({ verbose: true });
         const pickedMove = moves[Math.floor(Math.random() * moves.length)];
 
-        chessGame.move(pickedMove, 'user');
+        chessGame.move(pickedMove, PLAYER.USER);
 
         if (chessGame.isGameOver()) return;
 
         const results = await engine.search({ fen: chessGame.fen(), movetime: 200 });
-        if (!results) return;
-
-        chessGame.move(results[0].move, 'cpu');
+        chessGame.move(results[0].move, PLAYER.CPU);
     }
 
     async function autoMove() {
         if (chessGame.isGameOver()) return;
 
         let results = await engine.search({ fen: chessGame.fen(), movetime: 10 });
-        if (!results) return;
-
-        chessGame.move(results[0].move, 'auto-user');
+        chessGame.move(results[0].move, PLAYER.AUTO);
 
         if (chessGame.isGameOver()) return;
 
         results = await engine.search({ fen: chessGame.fen(), movetime: 10 });
-        if (!results) return;
-
-        chessGame.move(results[0].move, 'cpu');
+        chessGame.move(results[0].move, PLAYER.CPU);
     }
 
     function addRandomPieceToCollection() {
         let types = ['P', 'R', 'N', 'B', 'Q', 'K'];
         
-        if(gameOrientation == "black") {
+        if(gameOrientation === "black") {
             types = types.map(t => t.toLowerCase());
         }
         
         const randomType = types[Math.floor(Math.random() * types.length)];
         const randomMaterial = Math.random() < 0.5 ? 'gold' : 'wood';
-        const piece = new Piece(randomType, { 
-            name: chessSet.pieceNames[randomType.toUpperCase()],
-            material: randomMaterial 
-        });
-        chessSet.addPieceObject(piece);
+        chessSet.addPiece(randomType, { material: randomMaterial });
     }
 
     initProceduralBackground();

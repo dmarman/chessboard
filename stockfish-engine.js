@@ -57,7 +57,7 @@ class StockfishEngine {
         if (!this._ready) await this.init();
         await this._sync();
 
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             const pvLines = {};
 
             const onMessage = (e) => {
@@ -77,7 +77,16 @@ class StockfishEngine {
                         .sort((a, b) => a.multipv - b.multipv)
                         .map(({ move, score }) => ({ move, score }));
 
-                    resolve(multiPv === 1 ? (results ?? null) : results);
+                    if (results.length === 0) {
+                        const bestmove = line.split(/\s+/)[1];
+                        if (!bestmove || bestmove === "(none)") {
+                            reject(new Error(`StockfishEngine.search: no move from engine (line: "${line}", fen: "${fen}")`));
+                            return;
+                        }
+                        results.push({ move: bestmove, score: null });
+                    }
+
+                    resolve(results);
                 }
             };
 
