@@ -7,6 +7,6 @@ It's not multiplayer. Only one player plays. And to remove the cognitive burden 
 choose the next movement based on a limited set of engine moves. Not implemented yet.
 
 I know everything is one file now, but i will fix that soon. 
-The important thing is everything is in its own classe and we keep concerns decoupled and clean code.
+The important thing is everything is in its own class and we keep concerns decoupled and clean code.
 
 Do not delete comments in the code

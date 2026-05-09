@@ -6,7 +6,6 @@ function initProceduralBackground() {
 
     canv.width = window.innerWidth;
     canv.height = window.innerHeight;
-    document.body.style.background = 'black';
 
     const vsSource = `
         attribute vec2 position;

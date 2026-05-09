@@ -122,34 +122,71 @@
     }
 
     class PngPieceTheme {
-        constructor(spriteMap = {}) {
-            this._sprites = {
-                'p': 'sprites/standard/bp.png',
-                'b': 'sprites/standard/bb.png',
-                'r': 'sprites/standard/br.png',
-                'n': 'sprites/standard/bn.png',
-                'q': 'sprites/standard/bq.png',
-                'k': 'sprites/standard/bk.png',
+        constructor(familyMap = {}) {
+            this._families = {
+                standard: {
+                    'p': 'sprites/standard/bp.png',
+                    'b': 'sprites/standard/bb.png',
+                    'r': 'sprites/standard/br.png',
+                    'n': 'sprites/standard/bn.png',
+                    'q': 'sprites/standard/bq.png',
+                    'k': 'sprites/standard/bk.png',
 
-                'P': 'sprites/standard/wp.png',
-                'B': 'sprites/standard/wb.png',
-                'R': 'sprites/standard/wr.png',
-                'N': 'sprites/standard/wn.png',
-                'Q': 'sprites/standard/wq.png',
-                'K': 'sprites/standard/wk.png',
-            }
+                    'P': 'sprites/standard/wp.png',
+                    'B': 'sprites/standard/wb.png',
+                    'R': 'sprites/standard/wr.png',
+                    'N': 'sprites/standard/wn.png',
+                    'Q': 'sprites/standard/wq.png',
+                    'K': 'sprites/standard/wk.png',
+                },
+                rock: {
+                    'p': 'sprites/rock.png',
+                    'b': 'sprites/rock.png',
+                    'r': 'sprites/rock.png',
+                    'n': 'sprites/rock.png',
+                    'q': 'sprites/rock.png',
+                    'k': 'sprites/rock.png',
+                    'P': 'sprites/rock.png',
+                    'B': 'sprites/rock.png',
+                    'R': 'sprites/rock.png',
+                    'N': 'sprites/rock.png',
+                    'Q': 'sprites/rock.png',
+                    'K': 'sprites/rock.png',
+                },
+                checkers: {
+                    'p': 'sprites/checkers/bp.png',
+                    'b': 'sprites/checkers/bb.png',
+                    'r': 'sprites/checkers/br.png',
+                    'n': 'sprites/checkers/bn.png',
+                    'q': 'sprites/checkers/bq.png',
+                    'k': 'sprites/checkers/bk.png',
+
+                    'P': 'sprites/checkers/wp.png',
+                    'B': 'sprites/checkers/wb.png',
+                    'R': 'sprites/checkers/wr.png',
+                    'N': 'sprites/checkers/wn.png',
+                    'Q': 'sprites/checkers/wq.png',
+                    'K': 'sprites/checkers/wk.png',
+                },
+                // additional sprite families can be added here or via familyMap
+                ...familyMap,
+            };
         }
 
         render(piece) {
-            const path = this._sprites[piece.type];
+            const family = this._families[piece.style] ?? this._families.standard;
+            const path = family[piece.type];
             if (!path) return '';
             const sprite = `style="--sprite:url(${path})"`;
             const OVERLAYS = {
-                holographic: 'holo-overlay',
-                metallic:    'metal-overlay',
+                holo:        'holo-overlay',
+                poly:        'poly-overlay',
+                metal:       'metal-overlay',
                 shine:       'shine-overlay',
                 neon:        'neon-tint',
                 glass:       'glass-overlay',
+                gold:        'gold-overlay',
+                stripes:     'stripes-overlay',
             };
             const overlays = Object.entries(OVERLAYS)
                 .filter(([mod]) => piece.modifiers?.has(mod))
@@ -227,10 +264,8 @@
         }
     }
 
-    class Chessboard {
+    class EventEmitter {
         constructor() {
-            this._board = this.createBoard();
-            this.pieces = [];
             this._listeners = {};
         }
 
@@ -240,6 +275,14 @@
 
         emit(event, data) {
             (this._listeners[event] ?? []).forEach(fn => fn(data));
+        }
+    }
+
+    class Chessboard extends EventEmitter {
+        constructor() {
+            super();
+            this._board = this.createBoard();
+            this.pieces = [];
         }
 
         getState() {
@@ -394,18 +437,19 @@
                     pointer-events: none;
                 }
                 ${b} .piece svg { width: 100%; height: 100%; }
-                ${b} .piece img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+                ${b} .piece img { width: 100%; height: 100%; object-fit: contain;}
                 ${b} .piece-modifier-wrapper { position: relative; width: 100%; height: 100%; }
                 ${b} .piece-modifier-wrapper img {
                         position: absolute;
                         inset: 0;
-                        // filter: drop-shadow(2px 4px 6px black);
+                        /* filter: drop-shadow(2px 4px 6px black); */
                 }
 
                 ${b} .piece-white .holo-overlay { mix-blend-mode: multiply; }
                 ${b} .piece-black .holo-overlay { mix-blend-mode: color; }
                 ${b} .holo-overlay {
                     position: absolute; inset: 0;
+                    z-index: 4;
                     background-image: linear-gradient(
                         140deg,
                         hsl(186deg 89% 65%) 0%,
@@ -439,16 +483,87 @@
                     pointer-events: none;
                 }
                 @keyframes holo {
-                    0%   { background-position: 0% 0%;     filter: brightness(1) saturate(1.5); }
+                    0%   { background-position: 0% 0%;     filter: brightness(1.2) saturate(1.5); }
                     50%  { background-position: 100% 100%; filter: brightness(1.5) saturate(1.5); }
-                    100% { background-position: 0% 0%;     filter: brightness(1) saturate(1.5); }
+                    100% { background-position: 0% 0%;     filter: brightness(1.2) saturate(1.5); }
                 }
+
+                ${b} .piece-white .poly-overlay { mix-blend-mode: color; }
+                ${b} .piece-black .poly-overlay { mix-blend-mode: color; }
+                ${b} .poly-overlay {
+                    position: absolute; inset: 0;
+                    z-index: 4;
+                    background-image: linear-gradient(
+                        30deg,
+                        hsl(240deg 100% 50%) 2%,
+                        hsl(336deg 100% 50%) 35%,
+                        hsl(108deg 100% 50%) 47%,
+                        hsl(108deg 100% 50%) 57%,
+                        hsl(336deg 100% 50%) 68%,
+                        hsl(240deg 100% 50%) 96%
+                    );
+                    -webkit-mask-image: var(--sprite);
+                    mask-image: var(--sprite);
+                    -webkit-mask-size: contain;
+                    mask-size: contain;
+                    -webkit-mask-repeat: no-repeat;
+                    mask-repeat: no-repeat;
+                    -webkit-mask-position: center;
+                    mask-position: center;
+                    pointer-events: none;
+                }
+
+                ${b} .piece-white .gold-overlay { opacity: 0.8; mix-blend-mode: normal; }
+                ${b} .piece-black .gold-overlay {
+                    opacity: 0.8;
+                    mix-blend-mode: normal;
+                    background-image: url(textures/gold.png), linear-gradient(140deg, #1e0e0d 0, #cb9b51 22%, #ae6b28 30%, #b6a238 45%, #9f9a55 50%, #776b2a 55%, #9b975e 65%, #cb9b51 78%, #462523 100%);
+                    }
+                ${b} .gold-overlay {
+                    position: absolute; inset: 0;
+                    z-index: 4;
+                    background-image:
+                        url(textures/gold.png),
+                        linear-gradient(
+                            140deg,
+                            #462523 0,
+                            #cb9b51 22%,
+                            #f6f2c0 30%,
+                            #f6e27a 45%,
+                            #f6f2c0 50%,
+                            #f6e27a 55%,
+                            #f6f2c0 65%,
+                            #cb9b51 78%,
+                            #462523 100%
+                        );
+                    background-blend-mode: soft-light;
+                    -webkit-mask-image: var(--sprite);
+                    mask-image: var(--sprite);
+                    -webkit-mask-size: contain;
+                    mask-size: contain;
+                    -webkit-mask-repeat: no-repeat;
+                    mask-repeat: no-repeat;
+                    -webkit-mask-position: center;
+                    mask-position: center;
+                    background-size: cover, 200% 200%;
+                    animation: gold 5s ease-in-out infinite;
+                    pointer-events: none;
+                }
+
+                ${b} .glass-tint .gold-overlay { opacity: 0.5; }
+
+                @keyframes gold {
+                    0%   { background-position: 0% 0%;     filter: brightness(1) saturate(1); }
+                    50%  { background-position: 100% 100%; filter: brightness(1) saturate(1); }
+                    100% { background-position: 0% 0%;     filter: brightness(1) saturate(1); }
+                }
+
                 @keyframes neonPulse {
                     0%, 100% {
-                        filter: drop-shadow(0 0 1px #00ff00) drop-shadow(0 0 2px #00ff00) drop-shadow(0 0 3px #00aa00)
+                        filter: drop-shadow(0 0 4px #00ff00)
                     }
                     50% {
-                        filter: drop-shadow(0 0 2px #ffff00) drop-shadow(0 0 3px #ffff00) drop-shadow(0 0 4px #00ff00) drop-shadow(0 0 5px #00ff00)
+                        filter: drop-shadow(0 0 8px #00ff00)
                     }
                 }
                 ${b} .piece-modifier-wrapper.neon img {
@@ -456,6 +571,7 @@
                 }
                 ${b} .neon-tint {
                     position: absolute; inset: 0;
+                    z-index: 5;
                     background: #00ff00;
                     -webkit-mask-image: var(--sprite);
                     mask-image: var(--sprite);
@@ -475,10 +591,29 @@
                     filter: blur(2px);
                 }
 
+                ${b} .piece-black .glass-overlay {
+                    background-blend-mode: difference;
+                    mix-blend-mode: color-burn;
+                    filter: drop-shadow(2px 0 0 black) drop-shadow(-2px 0 0 black) drop-shadow(0 2px 0 black) drop-shadow(0 -2px 0 black);
+                }
+
+                ${b} .piece-black.glass-tint img {
+                    filter: blur(2px) invert(1);
+                }
+
+                ${b} .piece-white .glass-overlay {
+                    filter: drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white);
+                }
+
                 ${b} .glass-overlay {
                     position: absolute;
                     inset: 0;
-                    background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(200,230,255,0.4) 50%, rgba(255,255,255,0.6) 100%);
+                    z-index: 3;
+                    background-image:
+                        url(textures/glass.png),
+                        linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(200,230,255,0.4) 50%, rgba(255,255,255,0.6) 100%);
+                    background-blend-mode: overlay;
+                    background-size: cover;
                     -webkit-mask-image: var(--sprite);
                     mask-image: var(--sprite);
                     -webkit-mask-size: contain;
@@ -487,10 +622,8 @@
                     mask-repeat: no-repeat;
                     -webkit-mask-position: center;
                     mask-position: center;
-                    mix-blend-mode: overlay;
-                    pointer-events: none;
                     mix-blend-mode: difference;
-                    filter: drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white);
+                    pointer-events: none;
                 }
 
                 @keyframes shine {
@@ -507,6 +640,7 @@
                 }
                 ${b} .shine-overlay {
                     position: absolute; inset: 0;
+                    z-index: 4;
                     background-image: linear-gradient(
                         -130deg,
                         transparent 45%,
@@ -542,6 +676,7 @@
                 ${b} .piece-black .metal-overlay { mix-blend-mode: overlay; }
                 ${b} .metal-overlay {
                     position: absolute; inset: 0;
+                    z-index: 2;
                     background: conic-gradient(from var(--metal-angle) at 50% 50%,
                         #E4E7F7 0%,
                         #FFFFFF00 5%,
@@ -590,6 +725,38 @@
                     pointer-events: none;
                 }
 
+                ${b} .stripes-overlay {
+                    position: absolute; inset: 0;
+                    z-index: 2;
+                    background:
+                        repeating-linear-gradient(
+                            -45deg,
+                            #cc2200ee 0px,
+                            #cc2200ee 6px,
+                            transparent 6px,
+                            transparent 10px,
+                            #991100bb 10px,
+                            #991100bb 14px,
+                            transparent 14px,
+                            transparent 20px,
+                            #e63300cc 20px,
+                            #e63300cc 22px,
+                            transparent 22px,
+                            transparent 30px
+                        );
+                    -webkit-mask-image: var(--sprite);
+                    mask-image: var(--sprite);
+                    -webkit-mask-size: contain;
+                    mask-size: contain;
+                    -webkit-mask-repeat: no-repeat;
+                    mask-repeat: no-repeat;
+                    -webkit-mask-position: center;
+                    mask-position: center;
+                    pointer-events: none;
+                }
+                ${b} .piece-white .stripes-overlay { mix-blend-mode: multiply; }
+                ${b} .piece-black .stripes-overlay { mix-blend-mode: overlay; }
+
             `;
         }
 
@@ -609,11 +776,6 @@
                 squaresLayer.appendChild(row);
             }
             this.boardElement.appendChild(squaresLayer);
-
-            const boardImgOverlay = document.createElement('img');
-            boardImgOverlay.src = 'sprites/200.png';
-            boardImgOverlay.style.cssText = 'position:absolute;top:0;left:0;width:10%;height:10%;transform:scale(10);transform-origin:top left;image-rendering:pixelated;pointer-events:none;';
-            //this.boardElement.appendChild(boardImgOverlay);
 
             this.piecesLayer = document.createElement('div');
             this.piecesLayer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none';
@@ -725,12 +887,16 @@
             ], { duration: 5000, easing: 'ease-in-out', iterations: Infinity, delay });
             const holo = el.querySelector('.holo-overlay');
             if (holo) holo.style.animationDelay = `${delay}ms`;
+            const poly = el.querySelector('.poly-overlay');
+            if (poly) poly.style.animationDelay = `${delay}ms`;
             const shine = el.querySelector('.shine-overlay');
             if (shine) shine.style.animationDelay = `${delay}ms`;
             const img = el.querySelector('img');
             if (img) img.style.animationDelay = `${delay}ms`;
             const metal = el.querySelector('.metal-overlay');
             if (metal) metal.style.animationDelay = `${-(Math.random() * 3000)}ms`;
+            const gold = el.querySelector('.gold-overlay');
+            if (gold) gold.style.animationDelay = `${delay}ms`;
         }
 
         _animateThrow(el, dx, dy) {
@@ -825,22 +991,13 @@
         }
     }
 
-    class ChessGame {
+    class ChessGame extends EventEmitter {
         constructor(chessboard) {
+            super();
             this.chess = new Chess();
-            
+
             this.chessboard = chessboard;
             this.chessboard.on('move', data => this.emit('move', data));
-            
-            this._listeners = {};
-        }
-
-        on(event, fn) {
-            (this._listeners[event] ??= []).push(fn);
-        }
-
-        emit(event, data) {
-            (this._listeners[event] ?? []).forEach(fn => fn(data));
         }
 
         setPiecesFromFen(fen, pieces) {
@@ -870,7 +1027,7 @@
                 player: player
             });
 
-            return;
+            return chessMove;
         }
 
         isGameOver() {
@@ -929,18 +1086,10 @@
         }
     }
     
-    class ScoreEngine {
+    class ScoreEngine extends EventEmitter {
         constructor() {
+            super();
             this.score = 0;
-            this._listeners = {};
-        }
-
-        on(event, fn) {
-            (this._listeners[event] ??= []).push(fn);
-        }
-
-        emit(event, data) {
-            (this._listeners[event] ?? []).forEach(fn => fn(data));
         }
 
         reset() {
@@ -952,8 +1101,8 @@
             if (!effects.length) return null;
 
             const base = effects.filter(e => e.destination === 'add' ).reduce((s, e) => s + e.value, 0);
-            const mult = effects.filter(e => e.destination === 'mult').reduce((m, e) => m + e.value, 1);
-            const gained = base * mult;
+            const mult = effects.filter(e => e.destination === 'mult').reduce((m, e) => m + e.value, 0);
+            const gained = base * (mult + 1);
 
             this.score += gained;
             this.emit('score', { gained, total: this.score, effects });
@@ -986,26 +1135,11 @@
     scoreEngine.on('score', score => console.log(score))
 
     chessSet.addPieces([
-        'P', 'P', 'P', 'P', 'P', 'P', 'P',
+        'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P',
         'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p',
-        'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'
-    ], {modifier: 'glass'});
-
-    chessSet.addPieces([
-         'K', 'B', 'N', 'R',
-    ], {modifier: 'glass'});
-
-    chessSet.addPieces([
-        'R', 'N', 'B', 'Q',
-    ], {modifier: 'glass'});
-
-    chessSet.addPieces([
-        'P'
-    ], {modifier: 'neon'});
-
-    chessSet.addPieces([
-        'P', 'P', 'P', 'P',
-    ], {modifier: 'shine'});
+        'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r',
+        'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R',
+    ], {modifiers: [], style: 'checkers'});
 
     resetChessboard();
 
@@ -1019,7 +1153,7 @@
 
         //chessBoardUI.drawArrow('d1', 'h5', '#ff0000');
 
-        if(chessBoardUI._orientation === 'black') {
+        if(gameOrientation === 'black') {
             const results = await engine.search({ fen: chessGame.fen(), movetime: 100 }); 
             chessGame.move(results[0].move);
         }

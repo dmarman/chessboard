@@ -48,7 +48,7 @@ class StockfishEngine {
      * @param {boolean}[options.limitStrength] - Explicitly toggle UCI_LimitStrength
      *
      * @returns {Promise<SearchResult[]>}
-     *   Single result when multiPv === 1, array otherwise.
+     *   Always return array even if multiPv === 1.
      *   SearchResult: { move: string, score: { type: 'cp'|'mate', value: number } }
      */
     async search({ fen, depth, movetime, multiPv = 1, elo, limitStrength }) {
