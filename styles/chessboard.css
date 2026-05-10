@@ -1,0 +1,316 @@
+.chessboard-ui { border: 3px solid #797979ad; display: inline-block; position: relative; }
+.chessboard-ui .chess-row { display: flex; }
+.chessboard-ui .piece img { width: 100%; height: 100%; object-fit: contain; }
+.chessboard-ui .piece-modifier-wrapper { position: relative; width: 100%; height: 100%; }
+.chessboard-ui .piece-modifier-wrapper img {
+    position: absolute;
+    inset: 0;
+    /* filter: drop-shadow(2px 4px 6px black); */
+}
+
+.chessboard-ui .piece-white .holo-overlay { mix-blend-mode: multiply; }
+.chessboard-ui .piece-black .holo-overlay { mix-blend-mode: color; }
+.chessboard-ui .holo-overlay {
+    position: absolute; inset: 0;
+    z-index: 4;
+    background-image: linear-gradient(
+        140deg,
+        hsl(186deg 89% 65%) 0%,
+        hsl(207deg 84% 70%) 15%,
+        hsl(227deg 80% 75%) 22%,
+        hsl(248deg 77% 80%) 28%,
+        hsl(268deg 72% 85%) 33%,
+        hsl(248deg 77% 78%) 37%,
+        hsl(229deg 82% 72%) 42%,
+        hsl(209deg 86% 66%) 46%,
+        hsl(189deg 91% 60%) 50%,
+        hsl(209deg 90% 65%) 54%,
+        hsl(230deg 89% 69%) 58%,
+        hsl(250deg 88% 74%) 63%,
+        hsl(271deg 87% 79%) 67%,
+        hsl(250deg 87% 76%) 72%,
+        hsl(230deg 86% 74%) 78%,
+        hsl(210deg 85% 71%) 85%,
+        hsl(189deg 85% 69%) 100%
+    );
+    -webkit-mask-image: var(--sprite);
+    mask-image: var(--sprite);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    background-size: 200% 200%;
+    animation: holo 5s ease-in-out infinite;
+    pointer-events: none;
+}
+@keyframes holo {
+    0%   { background-position: 0% 0%;     filter: brightness(1.2) saturate(1.5); }
+    50%  { background-position: 100% 100%; filter: brightness(1.5) saturate(1.5); }
+    100% { background-position: 0% 0%;     filter: brightness(1.2) saturate(1.5); }
+}
+
+.chessboard-ui .piece-white .poly-overlay { mix-blend-mode: color; }
+.chessboard-ui .piece-black .poly-overlay { mix-blend-mode: color; }
+.chessboard-ui .poly-overlay {
+    position: absolute; inset: 0;
+    z-index: 4;
+    background-image: linear-gradient(
+        30deg,
+        hsl(240deg 100% 50%) 2%,
+        hsl(336deg 100% 50%) 35%,
+        hsl(108deg 100% 50%) 47%,
+        hsl(108deg 100% 50%) 57%,
+        hsl(336deg 100% 50%) 68%,
+        hsl(240deg 100% 50%) 96%
+    );
+    -webkit-mask-image: var(--sprite);
+    mask-image: var(--sprite);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    pointer-events: none;
+}
+
+.chessboard-ui .piece-white .gold-overlay { opacity: 0.8; mix-blend-mode: normal; }
+.chessboard-ui .piece-black .gold-overlay {
+    opacity: 0.8;
+    mix-blend-mode: normal;
+    background-image: url(/textures/gold.png), linear-gradient(140deg, #1e0e0d 0, #cb9b51 22%, #ae6b28 30%, #b6a238 45%, #9f9a55 50%, #776b2a 55%, #9b975e 65%, #cb9b51 78%, #462523 100%);
+}
+.chessboard-ui .gold-overlay {
+    position: absolute; inset: 0;
+    z-index: 4;
+    background-image:
+        url(/textures/gold.png),
+        linear-gradient(
+            140deg,
+            #462523 0,
+            #cb9b51 22%,
+            #f6f2c0 30%,
+            #f6e27a 45%,
+            #f6f2c0 50%,
+            #f6e27a 55%,
+            #f6f2c0 65%,
+            #cb9b51 78%,
+            #462523 100%
+        );
+    background-blend-mode: soft-light;
+    -webkit-mask-image: var(--sprite);
+    mask-image: var(--sprite);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    background-size: cover, 200% 200%;
+    animation: gold 5s ease-in-out infinite;
+    pointer-events: none;
+}
+.chessboard-ui .glass-tint .gold-overlay { opacity: 0.5; }
+
+@keyframes gold {
+    0%   { background-position: 0% 0%;     filter: brightness(1) saturate(1); }
+    50%  { background-position: 100% 100%; filter: brightness(1) saturate(1); }
+    100% { background-position: 0% 0%;     filter: brightness(1) saturate(1); }
+}
+
+@keyframes neonPulse {
+    0%, 100% { filter: drop-shadow(0 0 4px #00ff00) }
+    50%       { filter: drop-shadow(0 0 8px #00ff00) }
+}
+.chessboard-ui .piece-modifier-wrapper.neon img {
+    animation: neonPulse 5s ease-in-out infinite;
+}
+.chessboard-ui .neon-tint {
+    position: absolute; inset: 0;
+    z-index: 5;
+    background: #00ff00;
+    -webkit-mask-image: var(--sprite);
+    mask-image: var(--sprite);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    mix-blend-mode: lighten;
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.chessboard-ui .glass-tint img {
+    opacity: 0.3;
+    filter: blur(2px);
+}
+.chessboard-ui .piece-black .glass-overlay {
+    background-blend-mode: difference;
+    mix-blend-mode: color-burn;
+    filter: drop-shadow(2px 0 0 black) drop-shadow(-2px 0 0 black) drop-shadow(0 2px 0 black) drop-shadow(0 -2px 0 black);
+}
+.chessboard-ui .piece-black.glass-tint img {
+    filter: blur(2px) invert(1);
+}
+.chessboard-ui .piece-white .glass-overlay {
+    filter: drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white);
+}
+.chessboard-ui .glass-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    background-image:
+        url(/textures/glass.png),
+        linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(200,230,255,0.4) 50%, rgba(255,255,255,0.6) 100%);
+    background-blend-mode: overlay;
+    background-size: cover;
+    -webkit-mask-image: var(--sprite);
+    mask-image: var(--sprite);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    mix-blend-mode: difference;
+    pointer-events: none;
+}
+
+@keyframes shine {
+    0%   { background-position: 30% 0; }
+    50%  { background-position: 80% 0; }
+    100% { background-position: 30% 0; }
+}
+.chessboard-ui .piece-white .shine-overlay { mix-blend-mode: hard-light; }
+.chessboard-ui .piece-black .shine-overlay { mix-blend-mode: overlay; }
+.chessboard-ui .shine-overlay {
+    position: absolute; inset: 0;
+    z-index: 4;
+    background-image: linear-gradient(
+        -130deg,
+        transparent 45%,
+        rgba(255,255,255,1) 50%,
+        transparent 55%
+    );
+    background-color: #8d8d8d;
+    background-size: 300% 100%;
+    background-position: -150% 0;
+    -webkit-mask-image: var(--sprite);
+    mask-image: var(--sprite);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    animation: shine 5s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@property --metal-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+}
+@keyframes metalShimmer {
+    0%   { --metal-angle: 0deg; }
+    50%  { --metal-angle: 18deg; }
+    100% { --metal-angle: 0deg; }
+}
+.chessboard-ui .piece-white .metal-overlay { mix-blend-mode: multiply; }
+.chessboard-ui .piece-black .metal-overlay { mix-blend-mode: overlay; }
+.chessboard-ui .metal-overlay {
+    position: absolute; inset: 0;
+    z-index: 2;
+    background: conic-gradient(from var(--metal-angle) at 50% 50%,
+        #E4E7F7 0%,
+        #FFFFFF00 5%,
+        #FFFFFF00 20%,
+        #ECEEF8 25%,
+        #FFFFFF00 30%,
+        #FFFFFF00 40%,
+        #E4E7F7 45%,
+        #FFFFFF00 50%,
+        #FFFFFF00 70%,
+        #ECEEF8 75%,
+        #FFFFFF00 80%,
+        #FFFFFF00 95%,
+        #E4E7F7 100%),
+    conic-gradient(from 0deg at 50% 50%,
+        #ecececAA 0%,
+        #bebebeAA 5%,
+        #FFFFFFAA 10%,
+        #e0e0e0AA 15%,
+        #8c8c8cAA 20%,
+        #b5b5b5AA 25%,
+        #d8d8d8AA 30%,
+        #c2c2c2AA 35%,
+        #d8d8d8AA 40%,
+        #acababAA 45%,
+        #f1f1f1AA 50%,
+        #c6c6c6AA 55%,
+        #dadadaAA 60%,
+        #dcdcdcAA 70%,
+        #d9d9d9AA 75%,
+        #aeaeaeAA 80%,
+        #f9f9f9AA 85%,
+        #e7e7e7AA 90%,
+        #D3D7E9AA 95%,
+        #e9e9e9AA 100%);
+    -webkit-mask-image: var(--sprite);
+    mask-image: var(--sprite);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    filter: saturate(3) brightness(1);
+    animation: metalShimmer 5s ease-in-out infinite;
+    pointer-events: none;
+}
+
+.chessboard-ui .stripes-overlay {
+    position: absolute; inset: 0;
+    z-index: 2;
+    background:
+        repeating-linear-gradient(
+            -45deg,
+            #cc2200ee 0px,
+            #cc2200ee 6px,
+            transparent 6px,
+            transparent 10px,
+            #991100bb 10px,
+            #991100bb 14px,
+            transparent 14px,
+            transparent 20px,
+            #e63300cc 20px,
+            #e63300cc 22px,
+            transparent 22px,
+            transparent 30px
+        );
+    -webkit-mask-image: var(--sprite);
+    mask-image: var(--sprite);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    pointer-events: none;
+}
+.chessboard-ui .piece-white .stripes-overlay { mix-blend-mode: multiply; }
+.chessboard-ui .piece-black .stripes-overlay { mix-blend-mode: overlay; }
+
+.score-popup {
+    position: absolute;
+    pointer-events: none;
+    font-size: 32px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.7);
+    white-space: nowrap;
+    z-index: 2000;
+}

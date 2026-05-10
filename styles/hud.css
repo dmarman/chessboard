@@ -1,0 +1,102 @@
+#hud {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 256px;
+    margin-right: 32px;
+    align-self: flex-start;
+    padding-top: 4px;
+}
+
+#hud .hud-panel {
+    background: #12121f;
+    border: 1.5px solid #3a3a5c;
+    border-radius: 10px;
+    padding: 18px 16px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05);
+    display: flex;
+    flex-direction: column;
+    letter-spacing: 2px;
+}
+
+#hud .hud-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+#hud .hud-label {
+    font-size: 11px;
+    color: #6b6b9a;
+    text-transform: uppercase;
+}
+
+#hud .total-score .hud-value {
+    font-size: 48px;
+    color: #f5d76e;
+    text-align: center;
+    min-height: 50px;
+}
+
+#hud .hud-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #3a3a5c, transparent);
+    margin: 14px 0;
+}
+
+#hud .hud-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 8px 0px;
+    min-height: 42px;
+}
+
+#hud .hud-row-chips {
+    flex: 1;
+    text-align: right;
+    padding-right: 4px;
+}
+
+#hud .hud-row-x {
+    flex: 0;
+    padding: 0 8px;
+}
+
+#hud .hud-row-mult {
+    flex: 1;
+    text-align: left;
+    padding-left: 4px;
+}
+
+#hud .hud-sub-label {
+    font-size: 13px;
+    color: #7a7aaa;
+}
+
+#hud .hud-sub-value {
+    font-size: 40px;
+    color: #ffffff;
+    text-align: center;
+}
+
+#hud .hud-sub-value.chips {
+    font-size: 48px;
+    color: #5bc8f5;
+}
+
+#hud .hud-sub-value.mult {
+    font-size: 48px;
+    color: #f56b6b;
+}
+
+#hud .hud-sub-value.gained {
+    font-size: 56px;
+    min-height: 64px;
+    color: #ffffff;
+}
+
+#hud .hud-digit {
+    display: inline-block;
+}

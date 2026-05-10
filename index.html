@@ -6,37 +6,11 @@
 <script src="https://cdn.jsdelivr.net/npm/chess.js"></script>
 <script src="stockfish-engine.js"></script>
 <script src="background.js"></script>
-<style>
-  @font-face {
-    font-family: 'm6x11';
-    src: url('fonts/m6x11.ttf') format('truetype');
-  }
-
-  body { font-family: 'm6x11', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; -webkit-font-smoothing: none; text-rendering: optimizeSpeed; }
-  button, input, select, textarea { font: inherit; }
-
-  #bg-canvas {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    z-index: -1;
-  }
-
-  #game-layout {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-  }
-
-  .score-popup {
-    position: absolute;
-    pointer-events: none;
-    font-size: 32px;
-    text-shadow: 0 2px 6px rgba(0,0,0,0.7);
-    white-space: nowrap;
-    z-index: 2000;
-  }
-</style>
+<script src="src/EventEmitter.js"></script>
+<script src="src/constants.js"></script>
+<link rel="stylesheet" href="styles/base.css">
+<link rel="stylesheet" href="styles/hud.css">
+<link rel="stylesheet" href="styles/chessboard.css">
 </head>
 <body>
 <canvas id="bg-canvas"></canvas>
@@ -56,17 +30,6 @@
 </div>
 
 <script>
-    const THEME = {
-        pageBg:               '#1a1a1a',
-        boardBorder:          '#797979ad',
-        squareLight:          '#797979ad',
-        squareDark:           '#00000000',
-        scorePositive:        '#e2f3e4',
-        scoreNegative:        '#f87171',
-    };
-
-    const PLAYER = { USER: 'user', CPU: 'cpu', AUTO: 'auto-user' };
-
     document.body.style.background = THEME.pageBg;
 
     class Piece {
@@ -87,48 +50,48 @@
         constructor() {
             this._styles = {
                 standard: {
-                    'p': 'sprites/standard/bp.png',
-                    'b': 'sprites/standard/bb.png',
-                    'r': 'sprites/standard/br.png',
-                    'n': 'sprites/standard/bn.png',
-                    'q': 'sprites/standard/bq.png',
-                    'k': 'sprites/standard/bk.png',
+                    'p': '/sprites/standard/bp.png',
+                    'b': '/sprites/standard/bb.png',
+                    'r': '/sprites/standard/br.png',
+                    'n': '/sprites/standard/bn.png',
+                    'q': '/sprites/standard/bq.png',
+                    'k': '/sprites/standard/bk.png',
 
-                    'P': 'sprites/standard/wp.png',
-                    'B': 'sprites/standard/wb.png',
-                    'R': 'sprites/standard/wr.png',
-                    'N': 'sprites/standard/wn.png',
-                    'Q': 'sprites/standard/wq.png',
-                    'K': 'sprites/standard/wk.png',
+                    'P': '/sprites/standard/wp.png',
+                    'B': '/sprites/standard/wb.png',
+                    'R': '/sprites/standard/wr.png',
+                    'N': '/sprites/standard/wn.png',
+                    'Q': '/sprites/standard/wq.png',
+                    'K': '/sprites/standard/wk.png',
                 },
                 rock: {
-                    'p': 'sprites/rock.png',
-                    'b': 'sprites/rock.png',
-                    'r': 'sprites/rock.png',
-                    'n': 'sprites/rock.png',
-                    'q': 'sprites/rock.png',
-                    'k': 'sprites/rock.png',
-                    'P': 'sprites/rock.png',
-                    'B': 'sprites/rock.png',
-                    'R': 'sprites/rock.png',
-                    'N': 'sprites/rock.png',
-                    'Q': 'sprites/rock.png',
-                    'K': 'sprites/rock.png',
+                    'p': '/sprites/rock.png',
+                    'b': '/sprites/rock.png',
+                    'r': '/sprites/rock.png',
+                    'n': '/sprites/rock.png',
+                    'q': '/sprites/rock.png',
+                    'k': '/sprites/rock.png',
+                    'P': '/sprites/rock.png',
+                    'B': '/sprites/rock.png',
+                    'R': '/sprites/rock.png',
+                    'N': '/sprites/rock.png',
+                    'Q': '/sprites/rock.png',
+                    'K': '/sprites/rock.png',
                 },
                 checkers: {
-                    'p': 'sprites/checkers/bp.png',
-                    'b': 'sprites/checkers/bb.png',
-                    'r': 'sprites/checkers/br.png',
-                    'n': 'sprites/checkers/bn.png',
-                    'q': 'sprites/checkers/bq.png',
-                    'k': 'sprites/checkers/bk.png',
+                    'p': '/sprites/checkers/bp.png',
+                    'b': '/sprites/checkers/bb.png',
+                    'r': '/sprites/checkers/br.png',
+                    'n': '/sprites/checkers/bn.png',
+                    'q': '/sprites/checkers/bq.png',
+                    'k': '/sprites/checkers/bk.png',
 
-                    'P': 'sprites/checkers/wp.png',
-                    'B': 'sprites/checkers/wb.png',
-                    'R': 'sprites/checkers/wr.png',
-                    'N': 'sprites/checkers/wn.png',
-                    'Q': 'sprites/checkers/wq.png',
-                    'K': 'sprites/checkers/wk.png',
+                    'P': '/sprites/checkers/wp.png',
+                    'B': '/sprites/checkers/wb.png',
+                    'R': '/sprites/checkers/wr.png',
+                    'N': '/sprites/checkers/wn.png',
+                    'Q': '/sprites/checkers/wq.png',
+                    'K': '/sprites/checkers/wk.png',
                 },
             };
             this._preload();
@@ -176,15 +139,6 @@
         stripes:     'stripes-overlay',
     };
 
-    const PIECE_NAMES = {
-        'P': 'Pawn',
-        'R': 'Rook',
-        'N': 'Knight',
-        'B': 'Bishop',
-        'Q': 'Queen',
-        'K': 'King'
-    };
-
     class ChessSet {
         constructor() {
             this.pieces = [];
@@ -220,20 +174,6 @@
                 const j = Math.floor(Math.random() * (i + 1));
                 [this.pieces[i], this.pieces[j]] = [this.pieces[j], this.pieces[i]];
             }
-        }
-    }
-
-    class EventEmitter {
-        constructor() {
-            this._listeners = {};
-        }
-
-        on(event, fn) {
-            (this._listeners[event] ??= []).push(fn);
-        }
-
-        emit(event, data) {
-            (this._listeners[event] ?? []).forEach(fn => fn(data));
         }
     }
 
@@ -350,8 +290,7 @@
         constructor(element, options = {}) {
             super();
             this.boardElement = typeof element === 'string' ? document.getElementById(element) : element;
-            this._uid = `cbui-${Math.random().toString(36).slice(2)}`; // no need for crypto uuid now
-            this.boardElement.classList.add(this._uid);
+            this.boardElement.classList.add('chessboard-ui');
             this.squareSize = options.squareSize ?? 90;
             this._lightColor = options.lightColor ?? THEME.squareLight;
             this._darkColor = options.darkColor ?? THEME.squareDark;
@@ -361,7 +300,9 @@
             this._orientation = options.orientation ?? 'white';
             this.pieceElements = new Map();
             this.piecesLayer = null;
-            this._styleEl = this._injectStyles();
+            this._styleEl = document.createElement('style');
+            document.head.appendChild(this._styleEl);
+            this._updateStyles();
         }
 
         get lightColor() { return this._lightColor; }
@@ -376,349 +317,19 @@
         get shakeMs() { return this._shakeMs; }
         set shakeMs(v) { this._shakeMs = v; this._updateStyles(); }
 
-        _injectStyles() {
-            const el = document.createElement('style');
-            document.head.appendChild(el);
-            this._updateStyles(el);
-            return el;
-        }
-
-        _updateStyles(el = this._styleEl) {
+        _updateStyles() {
             const s = this.squareSize;
-            const b = `.${this._uid}`;
-            el.textContent = `
-                ${b} { border: 3px solid ${THEME.boardBorder}; display: inline-block; position: relative; }
-                ${b} .chess-row { display: flex; }
-                ${b} .chess-square { width: ${s}px; height: ${s}px; }
-                ${b} .chess-square.light { background: ${this._lightColor}; }
-                ${b} .chess-square.dark { background: ${this._darkColor}; }
-                ${b} .piece {
+            this._styleEl.textContent = `
+                .chessboard-ui .chess-square { width: ${s}px; height: ${s}px; }
+                .chessboard-ui .chess-square.light { background: ${this._lightColor}; }
+                .chessboard-ui .chess-square.dark { background: ${this._darkColor}; }
+                .chessboard-ui .piece {
                     position: absolute;
                     width: ${s}px;
                     height: ${s}px;
                     transition: transform ${this._transitionMs}ms ease-in-out;
                     pointer-events: none;
                 }
-                ${b} .piece img { width: 100%; height: 100%; object-fit: contain;}
-                ${b} .piece-modifier-wrapper { position: relative; width: 100%; height: 100%; }
-                ${b} .piece-modifier-wrapper img {
-                        position: absolute;
-                        inset: 0;
-                        /* filter: drop-shadow(2px 4px 6px black); */
-                }
-
-                ${b} .piece-white .holo-overlay { mix-blend-mode: multiply; }
-                ${b} .piece-black .holo-overlay { mix-blend-mode: color; }
-                ${b} .holo-overlay {
-                    position: absolute; inset: 0;
-                    z-index: 4;
-                    background-image: linear-gradient(
-                        140deg,
-                        hsl(186deg 89% 65%) 0%,
-                        hsl(207deg 84% 70%) 15%,
-                        hsl(227deg 80% 75%) 22%,
-                        hsl(248deg 77% 80%) 28%,
-                        hsl(268deg 72% 85%) 33%,
-                        hsl(248deg 77% 78%) 37%,
-                        hsl(229deg 82% 72%) 42%,
-                        hsl(209deg 86% 66%) 46%,
-                        hsl(189deg 91% 60%) 50%,
-                        hsl(209deg 90% 65%) 54%,
-                        hsl(230deg 89% 69%) 58%,
-                        hsl(250deg 88% 74%) 63%,
-                        hsl(271deg 87% 79%) 67%,
-                        hsl(250deg 87% 76%) 72%,
-                        hsl(230deg 86% 74%) 78%,
-                        hsl(210deg 85% 71%) 85%,
-                        hsl(189deg 85% 69%) 100%
-                    );
-                    -webkit-mask-image: var(--sprite);
-                    mask-image: var(--sprite);
-                    -webkit-mask-size: contain;
-                    mask-size: contain;
-                    -webkit-mask-repeat: no-repeat;
-                    mask-repeat: no-repeat;
-                    -webkit-mask-position: center;
-                    mask-position: center;
-                    background-size: 200% 200%;
-                    animation: holo 5s ease-in-out infinite;
-                    pointer-events: none;
-                }
-                @keyframes holo {
-                    0%   { background-position: 0% 0%;     filter: brightness(1.2) saturate(1.5); }
-                    50%  { background-position: 100% 100%; filter: brightness(1.5) saturate(1.5); }
-                    100% { background-position: 0% 0%;     filter: brightness(1.2) saturate(1.5); }
-                }
-
-                ${b} .piece-white .poly-overlay { mix-blend-mode: color; }
-                ${b} .piece-black .poly-overlay { mix-blend-mode: color; }
-                ${b} .poly-overlay {
-                    position: absolute; inset: 0;
-                    z-index: 4;
-                    background-image: linear-gradient(
-                        30deg,
-                        hsl(240deg 100% 50%) 2%,
-                        hsl(336deg 100% 50%) 35%,
-                        hsl(108deg 100% 50%) 47%,
-                        hsl(108deg 100% 50%) 57%,
-                        hsl(336deg 100% 50%) 68%,
-                        hsl(240deg 100% 50%) 96%
-                    );
-                    -webkit-mask-image: var(--sprite);
-                    mask-image: var(--sprite);
-                    -webkit-mask-size: contain;
-                    mask-size: contain;
-                    -webkit-mask-repeat: no-repeat;
-                    mask-repeat: no-repeat;
-                    -webkit-mask-position: center;
-                    mask-position: center;
-                    pointer-events: none;
-                }
-
-                ${b} .piece-white .gold-overlay { opacity: 0.8; mix-blend-mode: normal; }
-                ${b} .piece-black .gold-overlay {
-                    opacity: 0.8;
-                    mix-blend-mode: normal;
-                    background-image: url(textures/gold.png), linear-gradient(140deg, #1e0e0d 0, #cb9b51 22%, #ae6b28 30%, #b6a238 45%, #9f9a55 50%, #776b2a 55%, #9b975e 65%, #cb9b51 78%, #462523 100%);
-                    }
-                ${b} .gold-overlay {
-                    position: absolute; inset: 0;
-                    z-index: 4;
-                    background-image:
-                        url(textures/gold.png),
-                        linear-gradient(
-                            140deg,
-                            #462523 0,
-                            #cb9b51 22%,
-                            #f6f2c0 30%,
-                            #f6e27a 45%,
-                            #f6f2c0 50%,
-                            #f6e27a 55%,
-                            #f6f2c0 65%,
-                            #cb9b51 78%,
-                            #462523 100%
-                        );
-                    background-blend-mode: soft-light;
-                    -webkit-mask-image: var(--sprite);
-                    mask-image: var(--sprite);
-                    -webkit-mask-size: contain;
-                    mask-size: contain;
-                    -webkit-mask-repeat: no-repeat;
-                    mask-repeat: no-repeat;
-                    -webkit-mask-position: center;
-                    mask-position: center;
-                    background-size: cover, 200% 200%;
-                    animation: gold 5s ease-in-out infinite;
-                    pointer-events: none;
-                }
-
-                ${b} .glass-tint .gold-overlay { opacity: 0.5; }
-
-                @keyframes gold {
-                    0%   { background-position: 0% 0%;     filter: brightness(1) saturate(1); }
-                    50%  { background-position: 100% 100%; filter: brightness(1) saturate(1); }
-                    100% { background-position: 0% 0%;     filter: brightness(1) saturate(1); }
-                }
-
-                @keyframes neonPulse {
-                    0%, 100% {
-                        filter: drop-shadow(0 0 4px #00ff00)
-                    }
-                    50% {
-                        filter: drop-shadow(0 0 8px #00ff00)
-                    }
-                }
-                ${b} .piece-modifier-wrapper.neon img {
-                    animation: neonPulse 5s ease-in-out infinite;
-                }
-                ${b} .neon-tint {
-                    position: absolute; inset: 0;
-                    z-index: 5;
-                    background: #00ff00;
-                    -webkit-mask-image: var(--sprite);
-                    mask-image: var(--sprite);
-                    -webkit-mask-size: contain;
-                    mask-size: contain;
-                    -webkit-mask-repeat: no-repeat;
-                    mask-repeat: no-repeat;
-                    -webkit-mask-position: center;
-                    mask-position: center;
-                    mix-blend-mode: lighten;
-                    opacity: 0.6;
-                    pointer-events: none;
-                }
-
-                ${b} .glass-tint img {
-                    opacity: 0.3;
-                    filter: blur(2px);
-                }
-
-                ${b} .piece-black .glass-overlay {
-                    background-blend-mode: difference;
-                    mix-blend-mode: color-burn;
-                    filter: drop-shadow(2px 0 0 black) drop-shadow(-2px 0 0 black) drop-shadow(0 2px 0 black) drop-shadow(0 -2px 0 black);
-                }
-
-                ${b} .piece-black.glass-tint img {
-                    filter: blur(2px) invert(1);
-                }
-
-                ${b} .piece-white .glass-overlay {
-                    filter: drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white);
-                }
-
-                ${b} .glass-overlay {
-                    position: absolute;
-                    inset: 0;
-                    z-index: 3;
-                    background-image:
-                        url(textures/glass.png),
-                        linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(200,230,255,0.4) 50%, rgba(255,255,255,0.6) 100%);
-                    background-blend-mode: overlay;
-                    background-size: cover;
-                    -webkit-mask-image: var(--sprite);
-                    mask-image: var(--sprite);
-                    -webkit-mask-size: contain;
-                    mask-size: contain;
-                    -webkit-mask-repeat: no-repeat;
-                    mask-repeat: no-repeat;
-                    -webkit-mask-position: center;
-                    mask-position: center;
-                    mix-blend-mode: difference;
-                    pointer-events: none;
-                }
-
-                @keyframes shine {
-                    0%   { background-position: 30% 0; }
-                    50%  { background-position: 80% 0; }
-                    100% { background-position: 30% 0; }
-                }
-
-                ${b} .piece-white .shine-overlay {
-                    mix-blend-mode: hard-light;
-                }
-                ${b} .piece-black .shine-overlay {
-                    mix-blend-mode: overlay;
-                }
-                ${b} .shine-overlay {
-                    position: absolute; inset: 0;
-                    z-index: 4;
-                    background-image: linear-gradient(
-                        -130deg,
-                        transparent 45%,
-                        rgba(255,255,255,1) 50%,
-                        transparent 55%
-                    );
-                    background-color:#8d8d8d;
-                    background-size: 300% 100%;
-                    background-position: -150% 0;
-                    -webkit-mask-image: var(--sprite);
-                    mask-image: var(--sprite);
-                    -webkit-mask-size: contain;
-                    mask-size: contain;
-                    -webkit-mask-repeat: no-repeat;
-                    mask-repeat: no-repeat;
-                    -webkit-mask-position: center;
-                    mask-position: center;
-                    animation: shine 5s ease-in-out infinite;
-                    pointer-events: none;
-                }
-                @property --metal-angle {
-                    syntax: '<angle>';
-                    initial-value: 0deg;
-                    inherits: false;
-                }
-                @keyframes metalShimmer {
-                    0%   { --metal-angle: 0deg; }
-                    50%  { --metal-angle: 18deg; }
-                    100% { --metal-angle: 0deg; }
-                }
-
-                ${b} .piece-white .metal-overlay { mix-blend-mode: multiply; }
-                ${b} .piece-black .metal-overlay { mix-blend-mode: overlay; }
-                ${b} .metal-overlay {
-                    position: absolute; inset: 0;
-                    z-index: 2;
-                    background: conic-gradient(from var(--metal-angle) at 50% 50%,
-                        #E4E7F7 0%,
-                        #FFFFFF00 5%,
-                        #FFFFFF00 20%,
-                        #ECEEF8 25%,
-                        #FFFFFF00 30%,
-                        #FFFFFF00 40%,
-                        #E4E7F7 45%,
-                        #FFFFFF00 50%,
-                        #FFFFFF00 70%,
-                        #ECEEF8 75%,
-                        #FFFFFF00 80%,
-                        #FFFFFF00 95%,
-                        #E4E7F7 100%),
-                    conic-gradient(from 0deg at 50% 50%,
-                        #ecececAA 0%,
-                        #bebebeAA 5%,
-                        #FFFFFFAA 10%,
-                        #e0e0e0AA 15%,
-                        #8c8c8cAA 20%,
-                        #b5b5b5AA 25%,
-                        #d8d8d8AA 30%,
-                        #c2c2c2AA 35%,
-                        #d8d8d8AA 40%,
-                        #acababAA 45%,
-                        #f1f1f1AA 50%,
-                        #c6c6c6AA 55%,
-                        #dadadaAA 60%,
-                        #dcdcdcAA 70%,
-                        #d9d9d9AA 75%,
-                        #aeaeaeAA 80%,
-                        #f9f9f9AA 85%,
-                        #e7e7e7AA 90%,
-                        #D3D7E9AA 95%,
-                        #e9e9e9AA 100%);
-                    -webkit-mask-image: var(--sprite);
-                    mask-image: var(--sprite);
-                    -webkit-mask-size: contain;
-                    mask-size: contain;
-                    -webkit-mask-repeat: no-repeat;
-                    mask-repeat: no-repeat;
-                    -webkit-mask-position: center;
-                    mask-position: center;
-                    filter: saturate(3) brightness(1);
-                    animation: metalShimmer 5s ease-in-out infinite;
-                    pointer-events: none;
-                }
-
-                ${b} .stripes-overlay {
-                    position: absolute; inset: 0;
-                    z-index: 2;
-                    background:
-                        repeating-linear-gradient(
-                            -45deg,
-                            #cc2200ee 0px,
-                            #cc2200ee 6px,
-                            transparent 6px,
-                            transparent 10px,
-                            #991100bb 10px,
-                            #991100bb 14px,
-                            transparent 14px,
-                            transparent 20px,
-                            #e63300cc 20px,
-                            #e63300cc 22px,
-                            transparent 22px,
-                            transparent 30px
-                        );
-                    -webkit-mask-image: var(--sprite);
-                    mask-image: var(--sprite);
-                    -webkit-mask-size: contain;
-                    mask-size: contain;
-                    -webkit-mask-repeat: no-repeat;
-                    mask-repeat: no-repeat;
-                    -webkit-mask-position: center;
-                    mask-position: center;
-                    pointer-events: none;
-                }
-                ${b} .piece-white .stripes-overlay { mix-blend-mode: multiply; }
-                ${b} .piece-black .stripes-overlay { mix-blend-mode: overlay; }
-
             `;
         }
 
@@ -1088,123 +699,9 @@
     class HudUI {
         constructor(element, options = {}) {
             this._el = typeof element === 'string' ? document.getElementById(element) : element;
-            this._uid = `hudui-${Math.random().toString(36).slice(2)}`; // No need for crypto uuid now
-            this._el.classList.add(this._uid);
-            this._styleEl = this._injectStyles();
             this._buildDOM();
             this._currentTotal = 0;
             this._chain = Promise.resolve();
-        }
-
-        _injectStyles() {
-            const uid = this._uid;
-            const el = document.createElement('style');
-            el.textContent = `
-                .${uid} {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: stretch;
-                    width: 256px;
-                    margin-right: 32px;
-                    align-self: flex-start;
-                    padding-top: 4px;
-                }
-
-                .${uid} .hud-panel {
-                    background: #12121f;
-                    border: 1.5px solid #3a3a5c;
-                    border-radius: 10px;
-                    padding: 18px 16px;
-                    box-shadow: 0 4px 24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05);
-                    display: flex;
-                    flex-direction: column;
-                    letter-spacing: 2px;
-                }
-
-                .${uid} .hud-section {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 4px;
-                }
-
-                .${uid} .hud-label {
-                    font-size: 11px;
-                    color: #6b6b9a;
-                    text-transform: uppercase;
-                }
-
-                .${uid} .total-score .hud-value {
-                    font-size: 48px;
-                    color: #f5d76e;
-                    text-align: center;
-                    min-height: 50px;
-                }
-
-                .${uid} .hud-divider {
-                    height: 1px;
-                    background: linear-gradient(90deg, transparent, #3a3a5c, transparent);
-                    margin: 14px 0;
-                }
-
-                .${uid} .hud-row {
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    width: 100%;
-                    padding: 8px 0px;
-                    min-height: 42px;
-                }
-
-                .${uid} .hud-row-chips {
-                    flex: 1;
-                    text-align: right;
-                    padding-right: 4px;
-                }
-
-                .${uid} .hud-row-x {
-                    flex: 0;
-                    padding: 0 8px;
-                }
-
-                .${uid} .hud-row-mult {
-                    flex: 1;
-                    text-align: left;
-                    padding-left: 4px;
-                }
-
-                .${uid} .hud-sub-label {
-                    font-size: 13px;
-                    color: #7a7aaa;
-                }
-
-                .${uid} .hud-sub-value {
-                    font-size: 40px;
-                    color: #ffffff;
-                    text-align: center;
-                }
-
-                .${uid} .hud-sub-value.chips {
-                    font-size: 48px;
-                    color: #5bc8f5;
-                }
-
-                .${uid} .hud-sub-value.mult {
-                    font-size: 48px;
-                    color: #f56b6b;
-                }
-
-                .${uid} .hud-sub-value.gained {
-                    font-size: 56px;
-                    min-height: 64px;
-                    color: #ffffff;
-                }
-
-                .${uid} .hud-digit {
-                    display: inline-block;
-                }
-            `;
-            document.head.appendChild(el);
-            return el;
         }
 
         _buildDOM() {
@@ -1452,8 +949,6 @@
 
     scoreEngine.on('reset', data => hudUI.reset(data));
 
-    const ALL_MODIFIERS = ['holo', 'poly', 'metal', 'shine', 'neon', 'glass', 'gold', 'stripes'];
-    const ALL_STYLES = ['standard', 'checkers', 'rock'];
     const randomSubset = (arr, max) => { // no need to use fisher-yates, test function only
         const count = Math.floor(Math.random() * (max + 1)); // 0..max
         const shuffled = [...arr].sort(() => Math.random() - 0.5); // no need to use fisher-yates, test function only
