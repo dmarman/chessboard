@@ -42,7 +42,7 @@
         }
 
         color() {
-            return this.type === this.type.toUpperCase() ? 'white' : 'black';
+            return this.type === this.type.toUpperCase() ? 'w' : 'b';
         }
     }
 
@@ -120,7 +120,7 @@
                 .join('');
             const neonClass = piece.modifiers?.has('neon') ? 'neon' : '';
             const glassClass = piece.modifiers?.has('glass') ? 'glass-tint' : '';
-            const colorClass = piece.color() === 'black' ? 'piece-black' : 'piece-white';
+            const colorClass = piece.color() === 'b' ? 'piece-black' : 'piece-white';
 
             return `<div class="piece-modifier-wrapper ${neonClass} ${glassClass} ${colorClass}">
                 <img src="${path}" alt="${piece.type}" draggable="false" data-sync-delay>
@@ -274,7 +274,7 @@
             }
 
             if (promotion) {
-                piece.type = piece.color() === 'white' ? promotion.toUpperCase() : promotion.toLowerCase();
+                piece.type = piece.color() === 'w' ? promotion.toUpperCase() : promotion.toLowerCase();
             }
 
             this._board[toRow][toCol] = piece;
@@ -297,7 +297,7 @@
             this._transitionMs = options.transitionMs ?? 150;
             this._shakeMs = options.shakeMs ?? 500;
             this._renderPiece = options.renderPiece ?? (() => '');
-            this._orientation = options.orientation ?? 'white';
+            this._orientation = options.orientation ?? 'w';
             this.pieceElements = new Map();
             this.piecesLayer = null;
             this._styleEl = document.createElement('style');
@@ -365,7 +365,7 @@
         _posKey(row, col) { return `${row},${col}`; }
 
         _toVisual(row, col) {
-            return this._orientation === 'black' ? [7 - row, 7 - col] : [row, col];
+            return this._orientation === 'b' ? [7 - row, 7 - col] : [row, col];
         }
 
         createPieceElement(piece, row, col) {
@@ -600,6 +600,18 @@
             return this.chessboard.getPieceAt(square);
         }
 
+        hasBishopPair(color) {
+            return this._boardPieces().filter(p => p.type === 'b' && p.color === color).length >= 2;
+        }
+
+        getPieceCount(type, color) {
+            return this._boardPieces().filter(p => p.type === type && p.color === color).length;
+        }
+
+        _boardPieces() {
+            return this.chess.board().flat().filter(Boolean);
+        }
+
     }
 
     class Effects {
@@ -642,6 +654,80 @@
         }
     }
     
+    // Each joker def is a static blueprint.
+    // trigger(ctx, state) returns an effect object (same shape as Effects) or null if condition unmet.
+    // ctx: { chessGame, lastMove, scoreEngine, playerColor }
+    // state: per-instance mutable object for counters, cooldowns, etc.
+    const JOKER_DEFS = {
+        WILD_JESTER: {
+            id: 'WILD_JESTER',
+            name: 'Wild Jester',
+            description: '+4 mult every move',
+            trigger(_ctx, _state) {
+                return { source: 'joker', sourceType: 'WILD_JESTER', destination: 'mult', operation: 'add', value: 4 };
+            }
+        },
+        SCHOLAR: {
+            id: 'SCHOLAR',
+            name: 'Scholar',
+            description: 'Bishop pair alive → +50 chips',
+            trigger({ chessGame, playerColor }, _state) {
+                if (!chessGame.hasBishopPair(playerColor)) return null;
+                return { source: 'joker', sourceType: 'SCHOLAR', destination: 'add', operation: 'add', value: 50 };
+            }
+        },
+        PREDATOR: {
+            id: 'PREDATOR',
+            name: 'Predator',
+            description: 'Capture move → mult ×2',
+            trigger({ lastMove }, _state) {
+                if (!lastMove?.captured) return null;
+                return { source: 'joker', sourceType: 'PREDATOR', destination: 'mult', operation: 'mult', value: 2 };
+            }
+        },
+    };
+
+    // Live joker instance wrapping a def. Holds per-instance state for stateful jokers (counters, cooldowns, etc.).
+    class Joker {
+        constructor(def) {
+            this.instanceId = crypto.randomUUID();
+            this.defId = def.id;
+            this.name = def.name;
+            this.description = def.description;
+            // Mutable state bag — each def owns its own schema (e.g. { count: 0 })
+            this.state = {};
+        }
+
+        evaluate(ctx) {
+            return JOKER_DEFS[this.defId].trigger(ctx, this.state);
+        }
+    }
+
+    // Maintains ordered list of active Joker instances. collectEffects() returns effect objects ready for ScoreEngine.
+    class JokerRegistry {
+        constructor() {
+            this._active = [];
+        }
+
+        add(jokerId) {
+            if (!JOKER_DEFS[jokerId]) throw new Error(`Unknown joker: ${jokerId}`);
+            const joker = new Joker(JOKER_DEFS[jokerId]);
+            this._active.push(joker);
+            return joker;
+        }
+
+        // Remove by instanceId so duplicate jokers can be targeted individually
+        remove(instanceId) {
+            this._active = this._active.filter(j => j.instanceId !== instanceId);
+        }
+
+        collectEffects(ctx) {
+            return this._active
+                .map(j => j.evaluate(ctx))
+                .filter(Boolean);
+        }
+    }
+
     class ScoreEngine extends EventEmitter {
         constructor() {
             super();
@@ -874,10 +960,11 @@
     // Owns the move animation queue. Pre-scores effects via ScoreEngine (no timing dependency),
     // then drives ChessboardUI and HudUI animations in sync: per effect, both UIs animate in parallel.
     class AnimationCoordinator {
-        constructor(boardUI, hudUI, scoreEngine) {
+        constructor(boardUI, hudUI, scoreEngine, jokerUI = null) {
             this._boardUI = boardUI;
             this._hudUI = hudUI;
             this._scoreEngine = scoreEngine;
+            this._jokerUI = jokerUI;
             this._queue = [];
             this._draining = false;
             this._gen = 0;
@@ -910,11 +997,14 @@
             await this._boardUI.slideMove(move);
 
             for (const snap of snapshots) {
-                const boardAnim = this._boardUI.animatePieceEffect(move.toRow, move.toCol, snap.effect.value);
+                // Route joker effects to joker card, piece effects to board square
+                const fxAnim = snap.effect.source === 'joker' && this._jokerUI
+                    ? this._jokerUI.animateEffect(snap.effect.sourceType, snap.effect.value)
+                    : this._boardUI.animatePieceEffect(move.toRow, move.toCol, snap.effect.value);
                 const hudAnim = snap.isLast
                     ? this._hudUI.update(snap)
                     : this._hudUI.updatePartial(snap);
-                await Promise.all([boardAnim, hudAnim]);
+                await Promise.all([fxAnim, hudAnim]);
             }
 
             this._boardUI.endMove(move.toRow, move.toCol);
@@ -927,7 +1017,7 @@
         }
     }
 
-    const gameOrientation = 'white';
+    const PLAYER_COLOR = 'w';
     const scoreEngine = new ScoreEngine();
     const chessboard = new Chessboard();
     const chessSet = new ChessSet();
@@ -935,16 +1025,24 @@
     const pngTheme = new PngPieceTheme();
     const engine = new StockfishEngine();
     const chessBoardUI = new ChessboardUI('chessboard', {
-        orientation: gameOrientation,
+        orientation: PLAYER_COLOR,
         renderPiece: piece => pngTheme.render(piece)
     });
 
     const hudUI = new HudUI('hud');
     const animationCoordinator = new AnimationCoordinator(chessBoardUI, hudUI, scoreEngine);
 
+    const jokerRegistry = new JokerRegistry();
+
     chessGame.on('move', move => {
-        const effects = move.player === PLAYER.USER ? Effects.fromPiece(move.piece) : [];
-        animationCoordinator.enqueue({ ...move, promotion: !!move.promotion }, effects);
+        if (move.player !== PLAYER.USER) {
+            animationCoordinator.enqueue({ ...move, promotion: !!move.promotion }, []);
+            return;
+        }
+        const pieceEffects = Effects.fromPiece(move.piece);
+        const jokerCtx = { chessGame, lastMove: move, scoreEngine, playerColor: PLAYER_COLOR };
+        const jokerEffects = jokerRegistry.collectEffects(jokerCtx);
+        animationCoordinator.enqueue({ ...move, promotion: !!move.promotion }, [...pieceEffects, ...jokerEffects]);
     });
 
     scoreEngine.on('reset', data => hudUI.reset(data));
@@ -957,7 +1055,7 @@
     for (const type of ['P','P','P','P','P','P','P','P','p','p','p','p','p','p','p','p','r','n','b','q','k','b','n','r','R','N','B','Q','K','B','N','R']) {
         chessSet.addPiece(type, {
             modifiers: randomSubset(ALL_MODIFIERS, 3), // no need to use fisher-yates, test function only
-            style: ALL_STYLES[Math.floor(Math.random() * ALL_STYLES.length)],
+            //style: ALL_STYLES[Math.floor(Math.random() * ALL_STYLES.length)],
         });
     }
 
@@ -977,7 +1075,7 @@
 
         //chessBoardUI.drawArrow('d1', 'h5', '#ff0000');
         console.log(chessGame)
-        if(gameOrientation === 'black') {
+        if(PLAYER_COLOR === 'b') {
             const results = await engine.search({ fen: chessGame.fen(), movetime: 100 }); 
             chessGame.move(results[0].move);
         }
