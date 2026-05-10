@@ -12,7 +12,7 @@
     src: url('fonts/m6x11.ttf') format('truetype');
   }
 
-  body { font-family: 'm6x11', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+  body { font-family: 'm6x11', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; -webkit-font-smoothing: none; text-rendering: optimizeSpeed; }
   button, input, select, textarea { font: inherit; }
 
   #bg-canvas {
@@ -22,10 +22,15 @@
     z-index: -1;
   }
 
+  #game-layout {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
   .score-popup {
     position: absolute;
     pointer-events: none;
-    font-weight: 900;
     font-size: 32px;
     text-shadow: 0 2px 6px rgba(0,0,0,0.7);
     white-space: nowrap;
@@ -35,7 +40,10 @@
 </head>
 <body>
 <canvas id="bg-canvas"></canvas>
-<div id="chessboard"></div>
+<div id="game-layout">
+  <div id="hud"></div>
+  <div id="chessboard"></div>
+</div>
 
 <script>
     const THEME = {
@@ -43,16 +51,6 @@
         boardBorder:          '#797979ad',
         squareLight:          '#797979ad',
         squareDark:           '#00000000',
-        pieceWhiteFill:       '#fff',
-        pieceWhiteStroke:     '#000',
-        pieceBlackFill:       '#000',
-        pieceBlackStroke:     '#fff',
-        materialPlasticFill:  'green',
-        materialPlasticStroke:'darkgreen',
-        materialWoodFill:     'brown',
-        materialWoodStroke:   'saddlebrown',
-        materialGoldFill:     'gold',
-        materialGoldStroke:   'darkgoldenrod',
         scorePositive:        '#e2f3e4',
         scoreNegative:        '#f87171',
     };
@@ -65,7 +63,6 @@
         constructor(type, options = {}) {
             this.type = type; // 'R', 'N', 'B', 'Q', 'K', 'P'
             this.name = options.name || null;
-            this.material = options.material || 'none';
             this.style = options.style || 'classic';
             this.modifiers = new Set(options.modifiers ?? []);
         }
@@ -76,8 +73,8 @@
     }
 
     class PngPieceTheme {
-        constructor(familyMap = {}) {
-            this._families = {
+        constructor() {
+            this._styles = {
                 standard: {
                     'p': 'sprites/standard/bp.png',
                     'b': 'sprites/standard/bb.png',
@@ -122,17 +119,15 @@
                     'Q': 'sprites/checkers/wq.png',
                     'K': 'sprites/checkers/wk.png',
                 },
-                // additional sprite families can be added here or via familyMap
-                ...familyMap,
             };
         }
 
         render(piece) {
-            const family = this._families[piece.style] ?? this._families.standard;
+            const family = this._styles[piece.style] ?? this._styles.standard;
             const path = family[piece.type];
             if (!path) return '';
             const sprite = `style="--sprite:url(${path})"`;
-            const overlays = Object.entries(PngPieceTheme.OVERLAYS)
+            const modifiers = Object.entries(PngPieceTheme.MODIFIERS)
                 .filter(([mod]) => piece.modifiers?.has(mod))
                 .map(([, cls]) => `<div class="${cls}" data-sync-delay ${sprite}></div>`)
                 .join('');
@@ -142,11 +137,11 @@
 
             return `<div class="piece-modifier-wrapper ${neonClass} ${glassClass} ${colorClass}">
                 <img src="${path}" alt="${piece.type}" draggable="false" data-sync-delay>
-                ${overlays}
+                ${modifiers}
             </div>`;
         }
     }
-    PngPieceTheme.OVERLAYS = {
+    PngPieceTheme.MODIFIERS = {
         holo:        'holo-overlay',
         poly:        'poly-overlay',
         metal:       'metal-overlay',
@@ -327,8 +322,9 @@
         }
     }
 
-    class ChessboardUI {
+    class ChessboardUI extends EventEmitter {
         constructor(element, options = {}) {
+            super();
             this.boardElement = typeof element === 'string' ? document.getElementById(element) : element;
             this._uid = `cbui-${Math.random().toString(36).slice(2)}`;
             this.boardElement.classList.add(this._uid);
@@ -923,8 +919,10 @@
                 [
                     async () => {
                         const validEffects = effect ? effect.filter(e => e.value != null) : [];
-                        for (const e of validEffects) {
+                        for (const [i, e] of validEffects.entries()) {
+                            const isLast = i === validEffects.length - 1;
                             this._animateShake(el);
+                            this.emit(isLast ? 'lastEffectAnimationEnded' : 'effectAnimationEnded', e);
                             await this._showScoreEffect(el, e.value);
                         }
                     },
@@ -936,6 +934,8 @@
                     },
                 ],
             ]);
+
+            this.emit();
 
             this.pieceElements.delete(fromKey);
             this.pieceElements.set(this._posKey(toRow, toCol), el);
@@ -1009,30 +1009,40 @@
     }
 
     class Effects {
-
         static PIECE = {
             p:  [{ source: 'piece', sourceType: 'p',  destination: 'add', operation: 'add', value: 1  }],
             n:  [{ source: 'piece', sourceType: 'n',  destination: 'add', operation: 'add', value: 3  }],
             b:  [{ source: 'piece', sourceType: 'b',  destination: 'add', operation: 'add', value: 3  }],
             r:  [{ source: 'piece', sourceType: 'r',  destination: 'add', operation: 'add', value: 5  }],
             q:  [{ source: 'piece', sourceType: 'q',  destination: 'add', operation: 'add', value: 9  }],
-            k:  [{ source: 'piece', sourceType: 'k',  destination: 'add', operation: 'add', value: 0  }],
+            k:  [{ source: 'piece', sourceType: 'k',  destination: 'add', operation: 'add', value: 10 }],
         }
-
-        static MATERIAL = {
-            wood:  [{ source: 'material', sourceType: 'wood',  destination: 'add', operation: 'add', value: 50  }],
-            gold:  [{ source: 'material', sourceType: 'gold',  destination: 'add', operation: 'add', value: 100 }],
-        };
 
         static STYLE = {
             kiwen: [{ source: 'style',    sourceType: 'kiwen', destination: 'mult', operation: 'add', value: 2  }],
         };
 
-        static fromPiece({ material, style, type }) {
+        // Each modifier can produce multiple effects; a piece may have several modifiers stacked
+        static MODIFIER = {
+            holo:    [{ source: 'modifier', sourceType: 'holo',    destination: 'mult', operation: 'add', value: 1   }],
+            poly:    [{ source: 'modifier', sourceType: 'poly',    destination: 'mult', operation: 'add', value: 2   }],
+            metal:   [{ source: 'modifier', sourceType: 'metal',   destination: 'add',  operation: 'add', value: 20  }],
+            shine:   [{ source: 'modifier', sourceType: 'shine',   destination: 'add',  operation: 'add', value: 10  }],
+            neon:    [{ source: 'modifier', sourceType: 'neon',    destination: 'mult', operation: 'add', value: 1   }],
+            glass:   [{ source: 'modifier', sourceType: 'glass',   destination: 'mult', operation: 'add', value: 2   }],
+            gold:    [{ source: 'modifier', sourceType: 'gold',    destination: 'add',  operation: 'add', value: 30  }],
+            stripes: [{ source: 'modifier', sourceType: 'stripes', destination: 'add',  operation: 'add', value: 15  }],
+        };
+
+        static fromPiece({ style, type, modifiers }) {
+            const modifierEffects = modifiers
+                ? [...modifiers].flatMap(mod => Effects.MODIFIER[mod] ?? [])
+                : [];
+
             return [
                 ...(Effects.PIECE[type.toLowerCase()] ?? []),
-                ...(Effects.MATERIAL[material] ?? []),
                 ...(Effects.STYLE[style]       ?? []),
+                ...modifierEffects,
             ];
         }
     }
@@ -1041,6 +1051,9 @@
         constructor() {
             super();
             this.score = 0;
+            this.base = 0;
+            this.mult = 0;
+            this.gained = 0;
         }
 
         reset() {
@@ -1048,16 +1061,308 @@
             this.emit('reset', { score: 0 });
         }
 
-        applyEffects(effects) {
-            if (!effects.length) return null;
+        countEffect(effect) {
+            if(effect.destination === 'add') {
+                if(effect.operation === 'add') this.base += effect.value;
+                if(effect.operation === 'mult') this.base *= effect.value;
+            }
 
-            const base = effects.filter(e => e.destination === 'add' ).reduce((s, e) => s + e.value, 0);
-            const mult = effects.filter(e => e.destination === 'mult').reduce((m, e) => m + e.value, 0);
-            const gained = base * (mult + 1);
+            if(effect.destination === 'mult') {
+                if(effect.operation === 'add') this.mult += effect.value;
+                if(effect.operation === 'mult') this.mult *= effect.value;
+            }
 
-            this.score += gained;
-            this.emit('score', { gained, total: this.score, effects });
-            return gained;
+            this.emit('countedEffect', { effect, base: this.base, mult: this.mult });
+        }
+
+        countEffectAndCalculateMoveScore(effect) {
+            this.countEffect(effect);
+            this.gained = this.base * (this.mult + 1);
+            this.score += this.gained;
+
+            this.emit('countedEffectAndCalculateMoveScore', { gained: this.gained, total: this.score, base: this.base, mult: this.mult });
+
+            // reset for next piece's effects
+            this.base = 0;
+            this.mult = 0;
+        }
+    }
+
+    class HudUI {
+        constructor(element, options = {}) {
+            this._el = typeof element === 'string' ? document.getElementById(element) : element;
+            this._uid = `hudui-${Math.random().toString(36).slice(2)}`;
+            this._el.classList.add(this._uid);
+            this._styleEl = this._injectStyles();
+            this._buildDOM();
+        }
+
+        _injectStyles() {
+            const uid = this._uid;
+            const el = document.createElement('style');
+            el.textContent = `
+                .${uid} {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: stretch;
+                    width: 256px;
+                    margin-right: 32px;
+                    align-self: flex-start;
+                    padding-top: 4px;
+                }
+
+                .${uid} .hud-panel {
+                    background: #12121f;
+                    border: 1.5px solid #3a3a5c;
+                    border-radius: 10px;
+                    padding: 18px 16px;
+                    box-shadow: 0 4px 24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05);
+                    display: flex;
+                    flex-direction: column;
+                    letter-spacing: 2px;
+                }
+
+                .${uid} .hud-section {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                }
+
+                .${uid} .hud-label {
+                    font-size: 11px;
+                    color: #6b6b9a;
+                    text-transform: uppercase;
+                }
+
+                .${uid} .total-score .hud-value {
+                    font-size: 48px;
+                    color: #f5d76e;
+                    text-align: center;
+                    min-height: 50px;
+                }
+
+                .${uid} .hud-divider {
+                    height: 1px;
+                    background: linear-gradient(90deg, transparent, #3a3a5c, transparent);
+                    margin: 14px 0;
+                }
+
+                .${uid} .hud-row {
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    width: 100%;
+                    padding: 8px 0px;
+                    min-height: 42px;
+                }
+
+                .${uid} .hud-row-chips {
+                    flex: 1;
+                    text-align: right;
+                    padding-right: 4px;
+                }
+
+                .${uid} .hud-row-x {
+                    flex: 0;
+                    padding: 0 8px;
+                }
+
+                .${uid} .hud-row-mult {
+                    flex: 1;
+                    text-align: left;
+                    padding-left: 4px;
+                }
+
+                .${uid} .hud-sub-label {
+                    font-size: 13px;
+                    color: #7a7aaa;
+                }
+
+                .${uid} .hud-sub-value {
+                    font-size: 40px;
+                    color: #ffffff;
+                    text-align: center;
+                }
+
+                .${uid} .hud-sub-value.chips {
+                    font-size: 48px;
+                    color: #5bc8f5;
+                }
+
+                .${uid} .hud-sub-value.mult {
+                    font-size: 48px;
+                    color: #f56b6b;
+                }
+
+                .${uid} .hud-sub-value.gained {
+                    font-size: 56px;
+                    min-height: 64px;
+                    color: #ffffff;
+                }
+
+                .${uid} .hud-digit {
+                    display: inline-block;
+                }
+            `;
+            document.head.appendChild(el);
+            return el;
+        }
+
+        _buildDOM() {
+            this._el.innerHTML = `
+                <div class="hud-panel">
+                    <div class="hud-section total-score">
+                        <span class="hud-label">Score</span>
+                        <span class="hud-value">0</span>
+                    </div>
+                    <div class="hud-divider"></div>
+                    <div class="hud-section last-move">
+                        <div class="hud-row">
+                            <span class="hud-sub-value gained">&mdash;</span>
+                        </div>
+                        <div class="hud-row">
+                            <span class="hud-row-chips"><span class="hud-sub-value chips"></span></span>
+                            <span class="hud-row-x hud-sub-value">X</span>
+                            <span class="hud-row-mult"><span class="hud-sub-value mult"></span></span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            this._scoreVal  = this._el.querySelector('.total-score .hud-value');
+            this._chipsVal  = this._el.querySelector('.hud-sub-value.chips');
+            this._multVal   = this._el.querySelector('.hud-sub-value.mult');
+            this._gainedVal = this._el.querySelector('.hud-sub-value.gained');
+        }
+
+        _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        async _runSteps(steps) {
+            for (const step of steps) {
+                if (Array.isArray(step)) await Promise.all(step.map(s => s()));
+                else await step();
+            }
+        }
+
+        _setAndPulse(el, text, { twist = 0 } = {}) {
+            if (el.textContent === text) return Promise.resolve();
+            el.innerHTML = [...text].map(ch => `<span class="hud-digit">${ch}</span>`).join('');
+            const spans = [...el.querySelectorAll('.hud-digit')];
+            if (!spans.length) return Promise.resolve();
+            spans.forEach((span, i) => this._startFloat(span, i*1000));
+            const anims = spans.map((span, i) =>
+                span.animate(
+                    [
+                        { transform: `scale(1.6) rotate(${twist}deg)` },
+                        { transform: `scale(1.3) rotate(${-twist/2}deg)` },
+                        { transform: `scale(0.9) rotate(${twist/4}deg)` },
+                        { transform: 'scale(1) rotate(0deg)' }
+                    ],
+                    { duration: 200, delay: i * 50, easing: 'ease-out', fill: 'forwards', composite: 'add' }
+                )
+            );
+            return anims[anims.length - 1].finished;
+        }
+
+        // Idle float on a single span — random phase so digits drift out of sync.
+        _startFloat(span, delay) {
+            // cubic-bezier(0.37,0,0.63,1) approximates sin() acceleration curve at each quarter-period
+            span.animate(
+                [
+                    { transform: 'translateY(0px)',  easing: 'ease-out' },
+                    { transform: 'translateY(-1px)', easing: 'ease-in' },
+                    { transform: 'translateY(0px)',  easing: 'ease-out' },
+                    { transform: 'translateY(1px)',  easing: 'ease-in' },
+                    { transform: 'translateY(0px)' },
+                ],
+                { duration: 2000, delay: delay, iterations: Infinity }
+            );
+        }
+
+        // Each digit shakes independently in a loop. Fire-and-forget — store anims on el for cancellation.
+        _shakeDigits(el, intensity = 1) {
+            const s = intensity;
+            const spans = [...el.querySelectorAll('.hud-digit')];
+            el._shakeAnims = spans.map(span => {
+                span.style.transformOrigin = `${Math.random()*100}% ${Math.random()*50}%`;
+                const delay    = Math.random() * 60;
+                const duration = 200 + Math.random() * 100;
+                return span.animate(
+                    [
+                        { transform: 'rotate(0deg)' },
+                        { transform: `rotate(${(-6 + Math.random()*4)*s}deg)` },
+                        { transform: `rotate(${(5  + Math.random()*4)*s}deg)` },
+                        { transform: 'rotate(0deg)' },
+                    ],
+                    { duration, delay, easing: 'linear', iterations: Infinity, composite: 'add' }
+                );
+            });
+        }
+
+        _stopShakeDigits(el) {
+            el._shakeAnims?.forEach(a => a.cancel());
+            el._shakeAnims = null;
+        }
+
+        // Ticks a number from `from` to `to` over `duration` ms, writing plain text directly.
+        _animateCount(el, from, to, duration, format = v => `${v}`) {
+            if (el._countRaf) cancelAnimationFrame(el._countRaf);
+            return new Promise(resolve => {
+                const start = performance.now();
+                const tick = (now) => {
+                    const t = Math.min((now - start) / duration, 1);
+                    el.textContent = format(Math.round(from + (to - from) * t));
+                    if (t < 1) {
+                        el._countRaf = requestAnimationFrame(tick);
+                    } else {
+                        el._countRaf = null;
+                        if (to === 0) el.textContent = '';
+                        resolve();
+                    }
+                };
+                el._countRaf = requestAnimationFrame(tick);
+            });
+        }
+
+        updatePartial({ base, mult }) {
+            this._runSteps([
+                [
+                    () => this._setAndPulse(this._chipsVal, base > 0 ? `${base}` : '0'),
+                    () => this._setAndPulse(this._multVal, `${mult + 1}`, { twist: 30 }),
+                ],
+            ]);
+        }
+
+        update({ gained, total, base, mult }) {
+            const prevTotal = parseInt(this._scoreVal.textContent.replace(/,/g, '')) || 0;
+            this._runSteps([
+                [
+                    () => this._setAndPulse(this._chipsVal, base > 0 ? `${base}` : '0'),
+                    () => this._setAndPulse(this._multVal, `${mult + 1}`, { twist: 30 }),
+                ],
+                () => this._sleep(1000),
+                [
+                    () => this._setAndPulse(this._chipsVal, '0'),
+                    () => this._setAndPulse(this._multVal, '0', { twist: 30 }),
+                    () => this._setAndPulse(this._gainedVal, gained > 0 ? `${gained}` : ''),
+                ],
+                () => this._shakeDigits(this._gainedVal, 0.5),
+                () => this._sleep(1000),
+                [
+                    () => this._animateCount(this._gainedVal, gained, 0, Math.min(gained*10, 300)),
+                    () => this._animateCount(this._scoreVal, prevTotal, total, Math.min(total*10, 300), v => v.toLocaleString()),
+                ],
+            ]);
+        }
+
+        reset({ score }) {
+            this._runSteps([
+                [
+                    () => this._setAndPulse(this._scoreVal, score.toLocaleString()),
+                    () => this._setAndPulse(this._chipsVal, '0'),
+                    () => this._setAndPulse(this._multVal, '0', { twist: 30 }),
+                    () => this._setAndPulse(this._gainedVal, ''),
+                ],
+            ]);
         }
     }
 
@@ -1073,21 +1378,39 @@
         renderPiece: piece => pngTheme.render(piece)
     });
 
+    const hudUI = new HudUI('hud');
+
     chessGame.on('move', move => {
         const pieceEffects = move.player === PLAYER.USER ? Effects.fromPiece(move.piece) : [];
-        scoreEngine.applyEffects(pieceEffects);
 
         chessBoardUI.queueMove({ ...move, promotion: !!move.promotion, effect: pieceEffects });
     });
 
-    scoreEngine.on('score', score => console.log(score))
+    chessBoardUI.on('effectAnimationEnded', effect => {
+        scoreEngine.countEffect(effect);
+    })
 
-    chessSet.addPieces([
-        'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P',
-        'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p',
-        'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r',
-        'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R',
-    ], {modifiers: ['holo', 'metal'], style: 'checkers'});
+    chessBoardUI.on('lastEffectAnimationEnded', effect => {
+        scoreEngine.countEffectAndCalculateMoveScore(effect);
+    })
+
+    scoreEngine.on('countedEffect', data => hudUI.updatePartial(data));
+    scoreEngine.on('countedEffectAndCalculateMoveScore', data => hudUI.update(data));
+    scoreEngine.on('reset', data => hudUI.reset(data));
+
+    const ALL_MODIFIERS = ['holo', 'poly', 'metal', 'shine', 'neon', 'glass', 'gold', 'stripes'];
+    const ALL_STYLES = ['standard', 'checkers', 'rock'];
+    const randomSubset = (arr, max) => {
+        const count = Math.floor(Math.random() * (max + 1)); // 0..max
+        const shuffled = [...arr].sort(() => Math.random() - 0.5);
+        return shuffled.slice(0, count);
+    };
+    for (const type of ['P','P','P','P','P','P','P','P','p','p','p','p','p','p','p','p','r','n','b','q','k','b','n','r','R','N','B','Q','K','B','N','R']) {
+        chessSet.addPiece(type, {
+            modifiers: randomSubset(ALL_MODIFIERS, 3),
+            style: ALL_STYLES[Math.floor(Math.random() * ALL_STYLES.length)],
+        });
+    }
 
     (async () => { await resetChessboard(); })();
 
@@ -1100,7 +1423,7 @@
         chessBoardUI.initBoard(chessboard.getState());
 
         //chessBoardUI.drawArrow('d1', 'h5', '#ff0000');
-
+        console.log(chessGame)
         if(gameOrientation === 'black') {
             const results = await engine.search({ fen: chessGame.fen(), movetime: 100 }); 
             chessGame.move(results[0].move);
@@ -1141,8 +1464,7 @@
         }
         
         const randomType = types[Math.floor(Math.random() * types.length)];
-        const randomMaterial = Math.random() < 0.5 ? 'gold' : 'wood';
-        chessSet.addPiece(randomType, { material: randomMaterial });
+        chessSet.addPiece(randomType);
     }
 
     initProceduralBackground();
