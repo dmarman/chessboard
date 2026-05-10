@@ -42,7 +42,17 @@
 <canvas id="bg-canvas"></canvas>
 <div id="game-layout">
   <div id="hud"></div>
-  <div id="chessboard"></div>
+  <div>
+    <div id="chessboard"></div>
+
+    <div style="padding-top: 32px">
+        <button onclick="resetChessboard()">Reset</button>
+        <button onclick="randomMove()">Random move</button>
+        <button onclick="autoMove()">Auto move</button>
+        <button onclick="addRandomPieceToCollection()">Add random piece</button>
+    </div>
+
+  </div>
 </div>
 
 <script>
@@ -62,6 +72,7 @@
     class Piece {
         constructor(type, options = {}) {
             this.type = type; // 'R', 'N', 'B', 'Q', 'K', 'P'
+            this._originalType = type; // preserved through promotions so deck piece can be reverted
             this.name = options.name || null;
             this.style = options.style || 'classic';
             this.modifiers = new Set(options.modifiers ?? []);
@@ -120,6 +131,19 @@
                     'K': 'sprites/checkers/wk.png',
                 },
             };
+            this._preload();
+        }
+
+        _preload() {
+            const seen = new Set();
+            for (const family of Object.values(this._styles)) {
+                for (const path of Object.values(family)) {
+                    if (seen.has(path)) continue;
+                    seen.add(path);
+                    const img = new Image();
+                    img.src = path;
+                }
+            }
         }
 
         render(piece) {
@@ -152,17 +176,17 @@
         stripes:     'stripes-overlay',
     };
 
+    const PIECE_NAMES = {
+        'P': 'Pawn',
+        'R': 'Rook',
+        'N': 'Knight',
+        'B': 'Bishop',
+        'Q': 'Queen',
+        'K': 'King'
+    };
+
     class ChessSet {
         constructor() {
-            this.pieceNames = {
-                'P': 'Pawn',
-                'R': 'Rook',
-                'N': 'Knight',
-                'B': 'Bishop',
-                'Q': 'Queen',
-                'K': 'King'
-            };
-
             this.pieces = [];
         }
 
@@ -182,7 +206,7 @@
 
         addPiece(type, options = {}) {
             this.pieces.push(new Piece(type, {
-                name: this.pieceNames[type.toUpperCase()],
+                name: PIECE_NAMES[type.toUpperCase()],
                 ...options
             }));
         }
@@ -232,7 +256,7 @@
         }
 
         getPieceAt(pos) {
-            const [row, col] = this.parsePosition(pos);
+            const [row, col] = parseChessPosition(pos);
             return this._board[row][col];
         }
 
@@ -242,6 +266,8 @@
 
         setPiecesFromFen(fen, pieces) {
             this.pieces = [...pieces];
+            // revert any promotion mutations so deck pieces return to their original type
+            this.pieces.forEach(p => { p.type = p._originalType; });
             this._board = this.createBoard();
             const consumed = new Set();
 
@@ -254,6 +280,8 @@
                         if (index !== -1) {
                             this._board[i][colIndex] = this.pieces[index];
                             consumed.add(index);
+                        } else {
+                            console.warn(`setPiecesFromFen: no deck piece found for FEN char '${char}' at row ${i} col ${colIndex}. Square left empty.`);
                         }
                         colIndex++;
                     } else {
@@ -263,13 +291,9 @@
             }
         }
 
-        parsePosition(pos) {
-            return parseChessPosition(pos);
-        }
-
         move({ from, to, enPassant, promotion, isKingsideCastle, isQueensideCastle, player }) {
-            const [fromRow, fromCol] = this.parsePosition(from);
-            const [toRow, toCol] = this.parsePosition(to);
+            const [fromRow, fromCol] = parseChessPosition(from);
+            const [toRow, toCol] = parseChessPosition(to);
 
             if (isKingsideCastle) {
                 const piece = this._board[fromRow][4];
@@ -326,7 +350,7 @@
         constructor(element, options = {}) {
             super();
             this.boardElement = typeof element === 'string' ? document.getElementById(element) : element;
-            this._uid = `cbui-${Math.random().toString(36).slice(2)}`;
+            this._uid = `cbui-${Math.random().toString(36).slice(2)}`; // no need for crypto uuid now
             this.boardElement.classList.add(this._uid);
             this.squareSize = options.squareSize ?? 90;
             this._lightColor = options.lightColor ?? THEME.squareLight;
@@ -337,9 +361,6 @@
             this._orientation = options.orientation ?? 'white';
             this.pieceElements = new Map();
             this.piecesLayer = null;
-            this._queue = [];
-            this._draining = false;
-            this._gen = 0;
             this._styleEl = this._injectStyles();
         }
 
@@ -749,45 +770,8 @@
             return el;
         }
 
-        updatePiece(row, col, piece) {
-            const el = this.pieceElements.get(this._posKey(row, col));
-            if (el) el.innerHTML = this._renderPiece(piece);
-        }
-
-        queueMove(move) {
-            this._queue.push(move);
-            if (!this._draining) this._drain();
-        }
-
-        async _drain() {
-            this._draining = true;
-            const gen = this._gen;
-            while (this._queue.length) {
-                if (this._gen !== gen) break;
-                const m = this._queue.shift();
-                try {
-                    await this._animateMove(m);
-                } catch (e) {
-                    // animation cancelled by reset → bail
-                    if (this._gen !== gen) break;
-                    throw e;
-                }
-            }
-            this._draining = false;
-        }
-
         _cancelAnimations() {
-            this._queue = [];
-            this._gen++;
-            this._draining = false;
             this.boardElement.getAnimations?.({ subtree: true }).forEach(a => a.cancel());
-        }
-
-        async _runSteps(el, steps) {
-            for (const step of steps) {
-                if (Array.isArray(step)) await Promise.all(step.map(s => s(el)));
-                else await step(el);
-            }
         }
 
         async _animateSlide(el, dx, dy, toRow, toCol) {
@@ -898,7 +882,9 @@
             this.boardElement.querySelectorAll('[data-arrow]').forEach(el => el.remove());
         }
 
-        async _animateMove({ piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion = false, effect = null }) {
+        // Slides piece to destination and throws captured piece. Updates pieceElements.
+        // Call animatePieceEffect() per scored effect after this, then endMove().
+        async slideMove({ piece, captured, fromRow, fromCol, toRow, toCol, capturedRow, capturedCol, promotion = false }) {
             const fromKey = this._posKey(fromRow, fromCol);
             const el = this.pieceElements.get(fromKey);
             if (!el) return;
@@ -912,34 +898,31 @@
                 ? this.pieceElements.get(this._posKey(capturedRow, capturedCol))
                 : null;
 
+            await this._animateSlide(el, dx, dy, vToRow, vToCol);
+            this._handleCaptureAndPromotion(el, piece, promotion);
 
-            await this._runSteps(el, [
-                el => this._animateSlide(el, dx, dy, vToRow, vToCol),
-                el => this._handleCaptureAndPromotion(el, piece, promotion),
-                [
-                    async () => {
-                        const validEffects = effect ? effect.filter(e => e.value != null) : [];
-                        for (const [i, e] of validEffects.entries()) {
-                            const isLast = i === validEffects.length - 1;
-                            this._animateShake(el);
-                            this.emit(isLast ? 'lastEffectAnimationEnded' : 'effectAnimationEnded', e);
-                            await this._showScoreEffect(el, e.value);
-                        }
-                    },
-                    () => {
-                        if (!capturedEl) return Promise.resolve();
-                        // Map deletion and DOM removal co-located: no code path can delete one without the other
-                        this.pieceElements.delete(this._posKey(capturedRow, capturedCol));
-                        return this._animateThrow(capturedEl, dx, dy);
-                    },
-                ],
-            ]);
-
-            this.emit();
+            if (capturedEl) {
+                // Map deletion and DOM removal co-located: no code path can delete one without the other
+                this.pieceElements.delete(this._posKey(capturedRow, capturedCol));
+                await this._animateThrow(capturedEl, dx, dy);
+            }
 
             this.pieceElements.delete(fromKey);
             this.pieceElements.set(this._posKey(toRow, toCol), el);
-            this._animateFloat(el);
+        }
+
+        // Shakes piece at square and shows score popup. Returns Promise.
+        animatePieceEffect(toRow, toCol, value) {
+            const el = this.pieceElements.get(this._posKey(toRow, toCol));
+            if (!el) return Promise.resolve();
+            this._animateShake(el);
+            return this._showScoreEffect(el, value);
+        }
+
+        // Starts idle float on piece at destination. Call after all effects are done.
+        endMove(toRow, toCol) {
+            const el = this.pieceElements.get(this._posKey(toRow, toCol));
+            if (el) this._animateFloat(el);
         }
     }
 
@@ -1010,38 +993,39 @@
 
     class Effects {
         static PIECE = {
-            p:  [{ source: 'piece', sourceType: 'p',  destination: 'add', operation: 'add', value: 1  }],
-            n:  [{ source: 'piece', sourceType: 'n',  destination: 'add', operation: 'add', value: 3  }],
-            b:  [{ source: 'piece', sourceType: 'b',  destination: 'add', operation: 'add', value: 3  }],
-            r:  [{ source: 'piece', sourceType: 'r',  destination: 'add', operation: 'add', value: 5  }],
-            q:  [{ source: 'piece', sourceType: 'q',  destination: 'add', operation: 'add', value: 9  }],
+            p:  [{ source: 'piece', sourceType: 'p',  destination: 'add', operation: 'add', value: 10  }],
+            n:  [{ source: 'piece', sourceType: 'n',  destination: 'add', operation: 'add', value: 10 }],
+            b:  [{ source: 'piece', sourceType: 'b',  destination: 'add', operation: 'add', value: 10 }],
+            r:  [{ source: 'piece', sourceType: 'r',  destination: 'add', operation: 'add', value: 10 }],
+            q:  [{ source: 'piece', sourceType: 'q',  destination: 'add', operation: 'add', value: 10 }],
             k:  [{ source: 'piece', sourceType: 'k',  destination: 'add', operation: 'add', value: 10 }],
         }
 
         static STYLE = {
-            kiwen: [{ source: 'style',    sourceType: 'kiwen', destination: 'mult', operation: 'add', value: 2  }],
+            checkers: [{ source: 'style', sourceType: 'checkers', destination: 'mult', operation: 'mult', value: 10  }],
+            rock: [{ source: 'style', sourceType: 'rock', destination: 'mult', operation: 'add', value: 10  }],
         };
 
         // Each modifier can produce multiple effects; a piece may have several modifiers stacked
         static MODIFIER = {
-            holo:    [{ source: 'modifier', sourceType: 'holo',    destination: 'mult', operation: 'add', value: 1   }],
-            poly:    [{ source: 'modifier', sourceType: 'poly',    destination: 'mult', operation: 'add', value: 2   }],
-            metal:   [{ source: 'modifier', sourceType: 'metal',   destination: 'add',  operation: 'add', value: 20  }],
-            shine:   [{ source: 'modifier', sourceType: 'shine',   destination: 'add',  operation: 'add', value: 10  }],
-            neon:    [{ source: 'modifier', sourceType: 'neon',    destination: 'mult', operation: 'add', value: 1   }],
-            glass:   [{ source: 'modifier', sourceType: 'glass',   destination: 'mult', operation: 'add', value: 2   }],
-            gold:    [{ source: 'modifier', sourceType: 'gold',    destination: 'add',  operation: 'add', value: 30  }],
-            stripes: [{ source: 'modifier', sourceType: 'stripes', destination: 'add',  operation: 'add', value: 15  }],
+            holo:    [{ source: 'modifier', sourceType: 'holo',    destination: 'mult', operation: 'add', value: 5   }],
+            poly:    [{ source: 'modifier', sourceType: 'poly',    destination: 'mult', operation: 'add', value: 5   }],
+            metal:   [{ source: 'modifier', sourceType: 'metal',   destination: 'add',  operation: 'add', value: 5  }],
+            shine:   [{ source: 'modifier', sourceType: 'shine',   destination: 'add',  operation: 'add', value: 5  }],
+            neon:    [{ source: 'modifier', sourceType: 'neon',    destination: 'mult', operation: 'add', value: 5   }],
+            glass:   [{ source: 'modifier', sourceType: 'glass',   destination: 'mult', operation: 'add', value: 5   }],
+            gold:    [{ source: 'modifier', sourceType: 'gold',    destination: 'add',  operation: 'add', value: 5  }],
+            stripes: [{ source: 'modifier', sourceType: 'stripes', destination: 'add',  operation: 'add', value: 5  }],
         };
 
         static fromPiece({ style, type, modifiers }) {
             const modifierEffects = modifiers
-                ? [...modifiers].flatMap(mod => Effects.MODIFIER[mod] ?? [])
+                ? [...modifiers].flatMap(mod => Effects.MODIFIER[mod.toLowerCase()] ?? [])
                 : [];
 
             return [
                 ...(Effects.PIECE[type.toLowerCase()] ?? []),
-                ...(Effects.STYLE[style]       ?? []),
+                ...(Effects.STYLE[style?.toLowerCase()] ?? []),
                 ...modifierEffects,
             ];
         }
@@ -1052,49 +1036,64 @@
             super();
             this.score = 0;
             this.base = 0;
-            this.mult = 0;
+            this.mult = 1;
             this.gained = 0;
         }
 
         reset() {
             this.score = 0;
+            this.base = 0;
+            this.mult = 1;
+            this.gained = 0;
             this.emit('reset', { score: 0 });
         }
 
-        countEffect(effect) {
-            if(effect.destination === 'add') {
-                if(effect.operation === 'add') this.base += effect.value;
-                if(effect.operation === 'mult') this.base *= effect.value;
+        _applyEffect(effect) {
+            if (effect.destination === 'add') {
+                if (effect.operation === 'add') this.base += effect.value;
+                if (effect.operation === 'mult') this.base *= effect.value;
             }
-
-            if(effect.destination === 'mult') {
-                if(effect.operation === 'add') this.mult += effect.value;
-                if(effect.operation === 'mult') this.mult *= effect.value;
+            if (effect.destination === 'mult') {
+                if (effect.operation === 'add') this.mult += effect.value;
+                if (effect.operation === 'mult') this.mult *= effect.value;
             }
-
-            this.emit('countedEffect', { effect, base: this.base, mult: this.mult });
         }
 
-        countEffectAndCalculateMoveScore(effect) {
-            this.countEffect(effect);
-            this.gained = this.base * (this.mult + 1);
-            this.score += this.gained;
+        // Pre-computes all effects for a move and returns scored snapshots — no event emission, no timing dependency.
+        processEffects(effects) {
+            const validEffects = effects.filter(e => e.value != null);
+            if (!validEffects.length) return [];
 
-            this.emit('countedEffectAndCalculateMoveScore', { gained: this.gained, total: this.score, base: this.base, mult: this.mult });
-
-            // reset for next piece's effects
             this.base = 0;
-            this.mult = 0;
+            this.mult = 1;
+            const snapshots = [];
+
+            for (const [i, effect] of validEffects.entries()) {
+                this._applyEffect(effect);
+                const isLast = i === validEffects.length - 1;
+                if (isLast) {
+                    this.gained = this.base * this.mult;
+                    this.score += this.gained;
+                    snapshots.push({ effect, base: this.base, mult: this.mult, gained: this.gained, total: this.score, isLast: true });
+                    this.base = 0;
+                    this.mult = 1;
+                } else {
+                    snapshots.push({ effect, base: this.base, mult: this.mult, isLast: false });
+                }
+            }
+            return snapshots;
         }
     }
 
     class HudUI {
         constructor(element, options = {}) {
             this._el = typeof element === 'string' ? document.getElementById(element) : element;
-            this._uid = `hudui-${Math.random().toString(36).slice(2)}`;
+            this._uid = `hudui-${Math.random().toString(36).slice(2)}`; // No need for crypto uuid now
             this._el.classList.add(this._uid);
             this._styleEl = this._injectStyles();
             this._buildDOM();
+            this._currentTotal = 0;
+            this._chain = Promise.resolve();
         }
 
         _injectStyles() {
@@ -1236,6 +1235,12 @@
 
         _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+        _enqueue(fn) {
+            const result = this._chain.then(() => fn());
+            this._chain = result.catch(() => {});
+            return result;
+        }
+
         async _runSteps(steps) {
             for (const step of steps) {
                 if (Array.isArray(step)) await Promise.all(step.map(s => s()));
@@ -1324,22 +1329,22 @@
         }
 
         updatePartial({ base, mult }) {
-            this._runSteps([
+            return this._enqueue(() => this._runSteps([
                 [
                     () => this._setAndPulse(this._chipsVal, base > 0 ? `${base}` : '0'),
-                    () => this._setAndPulse(this._multVal, `${mult + 1}`, { twist: 30, duration: 300 }),
+                    () => this._setAndPulse(this._multVal, `${mult}`, { twist: 30, duration: 300 }),
                 ],
-            ]);
+            ]));
         }
 
         update({ gained, total, base, mult }) {
-            const prevTotal = parseInt(this._scoreVal.textContent.replace(/,/g, '')) || 0;
-            this._runSteps([
+            const prevTotal = this._currentTotal;
+            return this._enqueue(() => this._runSteps([
                 [
                     () => this._setAndPulse(this._chipsVal, base > 0 ? `${base}` : '0'),
-                    () => this._setAndPulse(this._multVal, `${mult + 1}`, { twist: 30, duration: 300 }),
+                    () => this._setAndPulse(this._multVal, `${mult}`, { twist: 30, duration: 300 }),
                 ],
-                () => this._sleep(1000),
+                () => this._sleep(500),
                 [
                     () => this._setAndPulse(this._chipsVal, '0'),
                     () => this._setAndPulse(this._multVal, '0', { twist: 30, duration: 300 }),
@@ -1351,18 +1356,77 @@
                     () => this._animateCount(this._gainedVal, gained, 0, Math.min(gained*10, 300)),
                     () => this._animateCount(this._scoreVal, prevTotal, total, Math.min(total*10, 300), v => v.toLocaleString()),
                 ],
-            ]);
+                () => { this._currentTotal = total; },
+            ]));
         }
 
         reset({ score }) {
-            this._runSteps([
+            this._chain = Promise.resolve();
+            this._currentTotal = score;
+            this._enqueue(() => this._runSteps([
                 [
                     () => this._setAndPulse(this._scoreVal, score.toLocaleString()),
                     () => this._setAndPulse(this._chipsVal, '0'),
                     () => this._setAndPulse(this._multVal, '0', { twist: 30, duration: 300 }),
                     () => this._setAndPulse(this._gainedVal, ''),
                 ],
-            ]);
+            ]));
+        }
+    }
+
+    // Owns the move animation queue. Pre-scores effects via ScoreEngine (no timing dependency),
+    // then drives ChessboardUI and HudUI animations in sync: per effect, both UIs animate in parallel.
+    class AnimationCoordinator {
+        constructor(boardUI, hudUI, scoreEngine) {
+            this._boardUI = boardUI;
+            this._hudUI = hudUI;
+            this._scoreEngine = scoreEngine;
+            this._queue = [];
+            this._draining = false;
+            this._gen = 0;
+        }
+
+        enqueue(move, effects) {
+            this._queue.push({ move, effects });
+            if (!this._draining) this._drain();
+        }
+
+        async _drain() {
+            this._draining = true;
+            const gen = this._gen;
+            while (this._queue.length) {
+                if (this._gen !== gen) break;
+                const item = this._queue.shift();
+                try {
+                    await this._process(item);
+                } catch {
+                    if (this._gen !== gen) break;
+                }
+            }
+            this._draining = false;
+        }
+
+        async _process({ move, effects }) {
+            // Score computed synchronously — no dependency on animation timing
+            const snapshots = this._scoreEngine.processEffects(effects);
+
+            await this._boardUI.slideMove(move);
+
+            for (const snap of snapshots) {
+                const boardAnim = this._boardUI.animatePieceEffect(move.toRow, move.toCol, snap.effect.value);
+                const hudAnim = snap.isLast
+                    ? this._hudUI.update(snap)
+                    : this._hudUI.updatePartial(snap);
+                await Promise.all([boardAnim, hudAnim]);
+            }
+
+            this._boardUI.endMove(move.toRow, move.toCol);
+        }
+
+        reset() {
+            this._queue = [];
+            this._gen++;
+            this._draining = false;
         }
     }
 
@@ -1379,42 +1443,36 @@
     });
 
     const hudUI = new HudUI('hud');
+    const animationCoordinator = new AnimationCoordinator(chessBoardUI, hudUI, scoreEngine);
 
     chessGame.on('move', move => {
-        const pieceEffects = move.player === PLAYER.USER ? Effects.fromPiece(move.piece) : [];
-
-        chessBoardUI.queueMove({ ...move, promotion: !!move.promotion, effect: pieceEffects });
+        const effects = move.player === PLAYER.USER ? Effects.fromPiece(move.piece) : [];
+        animationCoordinator.enqueue({ ...move, promotion: !!move.promotion }, effects);
     });
 
-    chessBoardUI.on('effectAnimationEnded', effect => {
-        scoreEngine.countEffect(effect);
-    })
-
-    chessBoardUI.on('lastEffectAnimationEnded', effect => {
-        scoreEngine.countEffectAndCalculateMoveScore(effect);
-    })
-
-    scoreEngine.on('countedEffect', data => hudUI.updatePartial(data));
-    scoreEngine.on('countedEffectAndCalculateMoveScore', data => hudUI.update(data));
     scoreEngine.on('reset', data => hudUI.reset(data));
 
     const ALL_MODIFIERS = ['holo', 'poly', 'metal', 'shine', 'neon', 'glass', 'gold', 'stripes'];
     const ALL_STYLES = ['standard', 'checkers', 'rock'];
-    const randomSubset = (arr, max) => {
+    const randomSubset = (arr, max) => { // no need to use fisher-yates, test function only
         const count = Math.floor(Math.random() * (max + 1)); // 0..max
-        const shuffled = [...arr].sort(() => Math.random() - 0.5);
+        const shuffled = [...arr].sort(() => Math.random() - 0.5); // no need to use fisher-yates, test function only
         return shuffled.slice(0, count);
     };
     for (const type of ['P','P','P','P','P','P','P','P','p','p','p','p','p','p','p','p','r','n','b','q','k','b','n','r','R','N','B','Q','K','B','N','R']) {
         chessSet.addPiece(type, {
-            modifiers: randomSubset(ALL_MODIFIERS, 3),
+            modifiers: randomSubset(ALL_MODIFIERS, 3), // no need to use fisher-yates, test function only
             style: ALL_STYLES[Math.floor(Math.random() * ALL_STYLES.length)],
         });
     }
 
+    let _moveInProgress = false;
+
     (async () => { await resetChessboard(); })();
 
     async function resetChessboard() {
+        if (_moveInProgress) return;
+        animationCoordinator.reset();
         chessGame.reset();
         scoreEngine.reset();
 
@@ -1431,51 +1489,43 @@
     }
 
     async function randomMove() {
-        if (chessGame.isGameOver()) return;
+        if (_moveInProgress || chessGame.isGameOver()) return;
+        _moveInProgress = true;
+        try {
+            const moves = chessGame.moves({ verbose: true });
+            const pickedMove = moves[Math.floor(Math.random() * moves.length)];
 
-        const moves = chessGame.moves({ verbose: true });
-        const pickedMove = moves[Math.floor(Math.random() * moves.length)];
+            chessGame.move(pickedMove, PLAYER.USER);
 
-        chessGame.move(pickedMove, PLAYER.USER);
+            if (chessGame.isGameOver()) return;
 
-        if (chessGame.isGameOver()) return;
+            const results = await engine.search({ fen: chessGame.fen(), movetime: 100 });
 
-        const results = await engine.search({ fen: chessGame.fen(), movetime: 200 });
-        chessGame.move(results[0].move, PLAYER.CPU);
+            chessGame.move(results[0].move, PLAYER.CPU);
+        } finally {
+            _moveInProgress = false;
+        }
     }
 
     async function autoMove() {
-        if (chessGame.isGameOver()) return;
+        if (_moveInProgress || chessGame.isGameOver()) return;
+        _moveInProgress = true;
+        try {
+            let results = await engine.search({ fen: chessGame.fen(), movetime: 10 });
+            chessGame.move(results[0].move, PLAYER.AUTO);
 
-        let results = await engine.search({ fen: chessGame.fen(), movetime: 10 });
-        chessGame.move(results[0].move, PLAYER.AUTO);
+            if (chessGame.isGameOver()) return;
 
-        if (chessGame.isGameOver()) return;
-
-        results = await engine.search({ fen: chessGame.fen(), movetime: 10 });
-        chessGame.move(results[0].move, PLAYER.CPU);
-    }
-
-    function addRandomPieceToCollection() {
-        let types = ['P', 'R', 'N', 'B', 'Q', 'K'];
-        
-        if(gameOrientation === "black") {
-            types = types.map(t => t.toLowerCase());
+            results = await engine.search({ fen: chessGame.fen(), movetime: 10 });
+            chessGame.move(results[0].move, PLAYER.CPU);
+        } finally {
+            _moveInProgress = false;
         }
-        
-        const randomType = types[Math.floor(Math.random() * types.length)];
-        chessSet.addPiece(randomType);
     }
+
 
     initProceduralBackground();
 </script>
-
-    <div>
-        <button onclick="resetChessboard()">Reset</button>
-        <button onclick="randomMove()">Random move</button>
-        <button onclick="autoMove()">Auto move</button>
-        <button onclick="addRandomPieceToCollection()">Add random piece</button>
-    </div>
 
 </body>
 </html>
