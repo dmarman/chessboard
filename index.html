@@ -27,7 +27,6 @@
         <button onclick="resetChessboard()">Reset</button>
         <button onclick="randomMove()">Random move</button>
         <button onclick="autoMove()">Auto move</button>
-        <button onclick="addRandomPieceToCollection()">Add random piece</button>
     </div>
 
   </div>
@@ -957,10 +956,10 @@
                     () => this._setAndPulse(this._multVal, '0', { twist: 30, duration: 300 }),
                     () => this._setAndPulse(this._gainedVal, gained > 0 ? `${gained}` : ''),
                 ],
-                () => this._shakeDigits(this._gainedVal, 0.5),
+                () => { this._stopShakeDigits(this._gainedVal); this._shakeDigits(this._gainedVal, 0.5); },
                 () => this._sleep(1000),
                 [
-                    () => this._animateCount(this._gainedVal, gained, 0, Math.min(gained*10, 300)),
+                    () => { this._stopShakeDigits(this._gainedVal); return this._animateCount(this._gainedVal, gained, 0, Math.min(gained*10, 300)); },
                     () => this._animateCount(this._scoreVal, prevTotal, total, Math.min(total*10, 300), v => v.toLocaleString()),
                 ],
                 () => { this._currentTotal = total; },
@@ -975,7 +974,7 @@
                     () => this._setAndPulse(this._scoreVal, score.toLocaleString()),
                     () => this._setAndPulse(this._chipsVal, '0'),
                     () => this._setAndPulse(this._multVal, '0', { twist: 30, duration: 300 }),
-                    () => this._setAndPulse(this._gainedVal, ''),
+                    () => { this._stopShakeDigits(this._gainedVal); return this._setAndPulse(this._gainedVal, ''); },
                 ],
             ]));
         }
@@ -1046,11 +1045,21 @@
             this._queue = [];
             this._draining = false;
             this._gen = 0;
+            this._onDrain = null;
         }
 
         enqueue(move, effects) {
             this._queue.push({ move, effects });
             if (!this._draining) this._drain();
+        }
+
+        // Resolves when the queue is fully drained (or immediately if already idle)
+        done() {
+            if (!this._draining) return Promise.resolve();
+            return new Promise(res => {
+                const prev = this._onDrain;
+                this._onDrain = () => { prev?.(); res(); };
+            });
         }
 
         async _drain() {
@@ -1060,19 +1069,23 @@
                 if (this._gen !== gen) break;
                 const item = this._queue.shift();
                 try {
-                    await this._process(item);
+                    await this._process(item, gen);
                 } catch {
                     if (this._gen !== gen) break;
                 }
             }
             this._draining = false;
+            const cb = this._onDrain;
+            this._onDrain = null;
+            cb?.();
         }
 
-        async _process({ move, effects }) {
+        async _process({ move, effects }, gen) {
             // Score computed synchronously — no dependency on animation timing
             const snapshots = this._scoreEngine.processEffects(effects);
 
             await this._boardUI.slideMove(move);
+            if (this._gen !== gen) return;
 
             for (const snap of snapshots) {
                 // Route joker effects to joker card, piece effects to board square
@@ -1083,6 +1096,7 @@
                     ? this._hudUI.update(snap)
                     : this._hudUI.updatePartial(snap);
                 await Promise.all([fxAnim, hudAnim]);
+                if (this._gen !== gen) return;
             }
 
             this._boardUI.endMove(move.toRow, move.toCol);
@@ -1091,7 +1105,7 @@
         reset() {
             this._queue = [];
             this._gen++;
-            this._draining = false;
+            // _draining stays true until the in-flight _drain() exits naturally
         }
     }
 
@@ -1180,6 +1194,7 @@
 
             chessGame.move(results[0].move, PLAYER.CPU);
         } finally {
+            await animationCoordinator.done();
             _moveInProgress = false;
         }
     }
@@ -1196,6 +1211,7 @@
             results = await engine.search({ fen: chessGame.fen(), movetime: 10 });
             chessGame.move(results[0].move, PLAYER.CPU);
         } finally {
+            await animationCoordinator.done();
             _moveInProgress = false;
         }
     }
