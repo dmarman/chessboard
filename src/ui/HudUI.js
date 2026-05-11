@@ -18,7 +18,7 @@
                         <span class="hud-value">0</span>
                     </div>
                     <div class="hud-divider"></div>
-                    <div class="hud-section last-move">
+                    <div class="hud-section">
                         <div class="hud-row">
                             <span class="hud-sub-value gained">&mdash;</span>
                         </div>
@@ -28,6 +28,21 @@
                             <span class="hud-row-mult"><span class="hud-sub-value mult"></span></span>
                         </div>
                     </div>
+                    <div class="hud-divider"></div>
+                    <div class="hud-section hud-money-section">
+                        <span class="hud-money-value">$0</span>
+                    </div>
+                    <div class="hud-divider"></div>
+                    <div class="hud-section hud-progress-section">
+                        <div class="hud-progress-col">
+                            <span class="hud-label">Tournament</span>
+                            <span class="hud-progress-tournament">1/8</span>
+                        </div>
+                        <div class="hud-progress-col">
+                            <span class="hud-label">Round</span>
+                            <span class="hud-progress-round">1/3</span>
+                        </div>
+                    </div>
                 </div>
             `;
             this._opponentSlot = this._el.querySelector('.hud-opponent-slot');
@@ -35,6 +50,9 @@
             this._chipsVal  = this._el.querySelector('.hud-sub-value.chips');
             this._multVal   = this._el.querySelector('.hud-sub-value.mult');
             this._gainedVal = this._el.querySelector('.hud-sub-value.gained');
+            this._moneyVal            = this._el.querySelector('.hud-money-value');
+            this._progressTournament  = this._el.querySelector('.hud-progress-tournament');
+            this._progressRound       = this._el.querySelector('.hud-progress-round');
         }
 
         _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -162,6 +180,16 @@
                 ],
                 () => { this._currentTotal = total; },
             ]));
+        }
+
+        setMoney(amount) {
+            this._moneyVal.textContent = `$${amount}`;
+        }
+
+        setProgress(tournament, maxTournament, opponent) {
+            const roundMap = { SMALL: 1, BIG: 2, BOSS: 3 };
+            this._progressTournament.innerHTML = `<span class="hud-progress-current">${tournament}</span><span class="hud-progress-total">/${maxTournament}</span>`;
+            this._progressRound.innerHTML = `<span class="hud-progress-current">${roundMap[opponent]}</span>`;
         }
 
         reset({ score }) {

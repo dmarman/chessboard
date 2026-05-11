@@ -1,11 +1,11 @@
     class Effects {
         static PIECE = {
-            p:  [{ source: 'piece', sourceType: 'p',  destination: 'add', operation: 'add', value: 10  }],
-            n:  [{ source: 'piece', sourceType: 'n',  destination: 'add', operation: 'add', value: 10 }],
-            b:  [{ source: 'piece', sourceType: 'b',  destination: 'add', operation: 'add', value: 10 }],
-            r:  [{ source: 'piece', sourceType: 'r',  destination: 'add', operation: 'add', value: 10 }],
-            q:  [{ source: 'piece', sourceType: 'q',  destination: 'add', operation: 'add', value: 10 }],
-            k:  [{ source: 'piece', sourceType: 'k',  destination: 'add', operation: 'add', value: 10 }],
+            p:  [{ source: 'piece', sourceType: 'p',  destination: 'add', operation: 'add', value: 100 }],
+            n:  [{ source: 'piece', sourceType: 'n',  destination: 'add', operation: 'add', value: 100 }],
+            b:  [{ source: 'piece', sourceType: 'b',  destination: 'add', operation: 'add', value: 100 }],
+            r:  [{ source: 'piece', sourceType: 'r',  destination: 'add', operation: 'add', value: 100 }],
+            q:  [{ source: 'piece', sourceType: 'q',  destination: 'add', operation: 'add', value: 100 }],
+            k:  [{ source: 'piece', sourceType: 'k',  destination: 'add', operation: 'add', value: 100 }],
         }
 
         static STYLE = {

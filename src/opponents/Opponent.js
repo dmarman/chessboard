@@ -6,6 +6,7 @@
             this.name = def.name;
             this.description = def.description;
             this.scoreAtLeast = def.scoreAtLeast;
+            this.reward = def.reward ?? 0;
             this.powers = def.powers ?? [];
             // Mutable state bag for powers — each def owns its own schema
             this.state = {};

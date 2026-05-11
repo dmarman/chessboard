@@ -8,6 +8,8 @@
             name: 'Wild Jester',
             description: '+4 mult every move',
             type: 'Q',
+            rarity: 'common',
+            price: 2,
             trigger(_ctx, _state) {
                 return { source: 'joker', sourceType: 'WILD_JESTER', destination: 'mult', operation: 'add', value: 4 };
             }
@@ -17,6 +19,8 @@
             name: 'Scholar',
             description: 'Bishop pair alive → +50 chips',
             type: 'B',
+            rarity: 'uncommon',
+            price: 5,
             trigger({ chessGame, playerColor }, _state) {
                 if (!chessGame.hasBishopPair(playerColor)) return null;
                 return { source: 'joker', sourceType: 'SCHOLAR', destination: 'add', operation: 'add', value: 50 };
@@ -27,6 +31,8 @@
             name: 'Predator',
             description: 'Capture move → mult ×2',
             type: 'N',
+            rarity: 'rare',
+            price: 7,
             trigger({ lastMove }, _state) {
                 if (!lastMove?.captured) return null;
                 return { source: 'joker', sourceType: 'PREDATOR', destination: 'mult', operation: 'mult', value: 2 };

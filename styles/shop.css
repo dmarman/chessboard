@@ -1,0 +1,160 @@
+.shop-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 110;
+    background: rgba(0, 0, 0, 0.8);
+    justify-content: center;
+    align-items: center;
+}
+
+.shop-overlay--visible {
+    display: flex;
+}
+
+.shop-modal {
+    background: #1a1a2e;
+    border: 2px solid #3a3a5c;
+    border-radius: 8px;
+    padding: 32px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    max-width: 600px;
+    width: 90vw;
+}
+
+.shop-title {
+    font-size: 24px;
+    color: #e0c97f;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.shop-slots {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+    min-height: 220px;
+}
+
+.shop-card {
+    background: #12122a;
+    border: 2px solid #2e2e50;
+    border-radius: 6px;
+    padding: 20px 16px;
+    width: 180px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    transition: border-color 0.15s;
+}
+
+.shop-card__rarity {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: bold;
+    padding: 2px 8px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.05);
+}
+
+.shop-card--common    .shop-card__rarity { color: #aaaaaa; border: 1px solid #aaaaaa; }
+.shop-card--uncommon  .shop-card__rarity { color: #4caf50; border: 1px solid #4caf50; }
+.shop-card--rare      .shop-card__rarity { color: #2196f3; border: 1px solid #2196f3; }
+.shop-card--legendary .shop-card__rarity { color: #ff9800; border: 1px solid #ff9800; }
+
+.shop-card--common:hover    { border-color: #aaaaaa; }
+.shop-card--uncommon:hover  { border-color: #4caf50; }
+.shop-card--rare:hover      { border-color: #2196f3; }
+.shop-card--legendary:hover { border-color: #ff9800; }
+
+.shop-card__name {
+    font-size: 16px;
+    color: #e0c97f;
+    text-align: center;
+    font-weight: bold;
+}
+
+.shop-card__desc {
+    font-size: 12px;
+    color: #9090bb;
+    text-align: center;
+    line-height: 1.4;
+    flex: 1;
+}
+
+.shop-card__price {
+    font-size: 18px;
+    color: #f0c040;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.shop-card__buy {
+    background: #4caf50;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 24px;
+    font-size: 13px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: background 0.15s;
+    width: 100%;
+}
+
+.shop-card__buy:hover:not(:disabled) {
+    background: #388e3c;
+}
+
+.shop-card__buy:disabled {
+    background: #444466;
+    cursor: not-allowed;
+}
+
+.shop-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.shop-reroll-btn,
+.shop-leave-btn {
+    border: none;
+    border-radius: 4px;
+    padding: 10px 28px;
+    font-size: 14px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: background 0.15s;
+}
+
+.shop-reroll-btn {
+    background: #7c4dff;
+    color: #fff;
+}
+
+.shop-reroll-btn:hover:not(:disabled) {
+    background: #5c35cc;
+}
+
+.shop-reroll-btn:disabled {
+    background: #444466;
+    cursor: not-allowed;
+}
+
+.shop-leave-btn {
+    background: #444466;
+    color: #aaaacc;
+}
+
+.shop-leave-btn:hover {
+    background: #555588;
+}

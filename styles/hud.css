@@ -29,6 +29,7 @@
     font-size: 11px;
     color: #6b6b9a;
     text-transform: uppercase;
+    padding-bottom: 8px;
 }
 
 #hud .total-score .hud-value {
@@ -99,4 +100,41 @@
 
 #hud .hud-digit {
     display: inline-block;
+}
+
+#hud .hud-money-section {
+    align-items: center;
+}
+
+#hud .hud-money-value {
+    font-size: 48px;
+    color: #f0c040;
+}
+
+#hud .hud-progress-section {
+    flex-direction: row;
+    justify-content: space-around;
+}
+
+#hud .hud-progress-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+#hud .hud-progress-tournament,
+#hud .hud-progress-round {
+    font-size: 48px;
+    display: flex;
+    align-items: center;
+}
+
+#hud .hud-progress-current {
+    color: #f5d76e;
+}
+
+#hud .hud-progress-total {
+    color: #ffffff;
+    font-size: 24px;
 }

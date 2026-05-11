@@ -41,17 +41,20 @@
 
         _buildCard(opp) {
             const card = document.createElement('div');
-            card.className = 'tournament-card';
+            card.className = 'tournament-card' + (opp.isActive ? '' : ' tournament-card--locked');
             card.innerHTML = `
                 <div class="tournament-card__name">${opp.name}</div>
                 <div class="tournament-card__desc">${opp.description}</div>
                 <div class="tournament-card__target">Beat: <span class="tournament-card__target-value">${opp.scoreAtLeast}</span></div>
-                <button class="tournament-card__btn">Fight</button>
+                <div class="tournament-card__reward">${'$'.repeat(opp.reward)}</div>
+                <button class="tournament-card__btn" ${opp.isActive ? '' : 'disabled'}>Fight</button>
             `;
-            card.querySelector('.tournament-card__btn').addEventListener('click', () => {
-                this.emit('select', opp.id);
-                this.hide();
-            });
+            if (opp.isActive) {
+                card.querySelector('.tournament-card__btn').addEventListener('click', () => {
+                    this.emit('select', opp.id);
+                    this.hide();
+                });
+            }
             return card;
         }
     }

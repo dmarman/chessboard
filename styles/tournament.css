@@ -84,6 +84,13 @@
     font-weight: bold;
 }
 
+.tournament-card__reward {
+    font-size: 16px;
+    color: #f0c040;
+    letter-spacing: 2px;
+    margin-top: 6px;
+}
+
 .tournament-card__btn {
     margin-top: 8px;
     background: #e05555;
@@ -100,4 +107,22 @@
 
 .tournament-card__btn:hover {
     background: #c03838;
+}
+
+.tournament-card--locked {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.tournament-card--locked:hover {
+    border-color: #2e2e50;
+}
+
+.tournament-card--locked .tournament-card__btn {
+    background: #444466;
+    cursor: not-allowed;
+}
+
+.tournament-card--locked .tournament-card__btn:hover {
+    background: #444466;
 }
