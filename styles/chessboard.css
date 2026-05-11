@@ -1,16 +1,16 @@
 .chessboard-ui { border: 3px solid #797979ad; display: inline-block; position: relative; }
 .chessboard-ui .chess-row { display: flex; }
 .chessboard-ui .piece img { width: 100%; height: 100%; object-fit: contain; }
-.chessboard-ui .piece-modifier-wrapper { position: relative; width: 100%; height: 100%; }
-.chessboard-ui .piece-modifier-wrapper img {
+.piece-modifier-wrapper { position: relative; width: 100%; height: 100%; }
+.piece-modifier-wrapper img {
     position: absolute;
     inset: 0;
     /* filter: drop-shadow(2px 4px 6px black); */
 }
 
-.chessboard-ui .piece-white .holo-overlay { mix-blend-mode: multiply; }
-.chessboard-ui .piece-black .holo-overlay { mix-blend-mode: color; }
-.chessboard-ui .holo-overlay {
+.piece-white .holo-overlay { mix-blend-mode: multiply; }
+.piece-black .holo-overlay { mix-blend-mode: color; }
+.holo-overlay {
     position: absolute; inset: 0;
     z-index: 4;
     background-image: linear-gradient(
@@ -51,9 +51,9 @@
     100% { background-position: 0% 0%;     filter: brightness(1.2) saturate(1.5); }
 }
 
-.chessboard-ui .piece-white .poly-overlay { mix-blend-mode: color; }
-.chessboard-ui .piece-black .poly-overlay { mix-blend-mode: color; }
-.chessboard-ui .poly-overlay {
+.piece-white .poly-overlay { mix-blend-mode: color; }
+.piece-black .poly-overlay { mix-blend-mode: color; }
+.poly-overlay {
     position: absolute; inset: 0;
     z-index: 4;
     background-image: linear-gradient(
@@ -76,13 +76,13 @@
     pointer-events: none;
 }
 
-.chessboard-ui .piece-white .gold-overlay { opacity: 0.8; mix-blend-mode: normal; }
-.chessboard-ui .piece-black .gold-overlay {
+.piece-white .gold-overlay { opacity: 0.8; mix-blend-mode: normal; }
+.piece-black .gold-overlay {
     opacity: 0.8;
     mix-blend-mode: normal;
     background-image: url(/textures/gold.png), linear-gradient(140deg, #1e0e0d 0, #cb9b51 22%, #ae6b28 30%, #b6a238 45%, #9f9a55 50%, #776b2a 55%, #9b975e 65%, #cb9b51 78%, #462523 100%);
 }
-.chessboard-ui .gold-overlay {
+.gold-overlay {
     position: absolute; inset: 0;
     z-index: 4;
     background-image:
@@ -112,7 +112,7 @@
     animation: gold 5s ease-in-out infinite;
     pointer-events: none;
 }
-.chessboard-ui .glass-tint .gold-overlay { opacity: 0.5; }
+.glass-tint .gold-overlay { opacity: 0.5; }
 
 @keyframes gold {
     0%   { background-position: 0% 0%;     filter: brightness(1) saturate(1); }
@@ -124,10 +124,10 @@
     0%, 100% { filter: drop-shadow(0 0 4px #00ff00) }
     50%       { filter: drop-shadow(0 0 8px #00ff00) }
 }
-.chessboard-ui .piece-modifier-wrapper.neon img {
+.piece-modifier-wrapper.neon img {
     animation: neonPulse 5s ease-in-out infinite;
 }
-.chessboard-ui .neon-tint {
+.neon-tint {
     position: absolute; inset: 0;
     z-index: 5;
     background: #00ff00;
@@ -144,22 +144,22 @@
     pointer-events: none;
 }
 
-.chessboard-ui .glass-tint img {
+.glass-tint img {
     opacity: 0.3;
     filter: blur(2px);
 }
-.chessboard-ui .piece-black .glass-overlay {
+.piece-black .glass-overlay {
     background-blend-mode: difference;
     mix-blend-mode: color-burn;
     filter: drop-shadow(2px 0 0 black) drop-shadow(-2px 0 0 black) drop-shadow(0 2px 0 black) drop-shadow(0 -2px 0 black);
 }
-.chessboard-ui .piece-black.glass-tint img {
+.piece-black.glass-tint img {
     filter: blur(2px) invert(1);
 }
-.chessboard-ui .piece-white .glass-overlay {
+.piece-white .glass-overlay {
     filter: drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white);
 }
-.chessboard-ui .glass-overlay {
+.glass-overlay {
     position: absolute;
     inset: 0;
     z-index: 3;
@@ -185,9 +185,9 @@
     50%  { background-position: 80% 0; }
     100% { background-position: 30% 0; }
 }
-.chessboard-ui .piece-white .shine-overlay { mix-blend-mode: hard-light; }
-.chessboard-ui .piece-black .shine-overlay { mix-blend-mode: overlay; }
-.chessboard-ui .shine-overlay {
+.piece-white .shine-overlay { mix-blend-mode: hard-light; }
+.piece-black .shine-overlay { mix-blend-mode: overlay; }
+.shine-overlay {
     position: absolute; inset: 0;
     z-index: 4;
     background-image: linear-gradient(
@@ -221,9 +221,9 @@
     50%  { --metal-angle: 18deg; }
     100% { --metal-angle: 0deg; }
 }
-.chessboard-ui .piece-white .metal-overlay { mix-blend-mode: multiply; }
-.chessboard-ui .piece-black .metal-overlay { mix-blend-mode: overlay; }
-.chessboard-ui .metal-overlay {
+.piece-white .metal-overlay { mix-blend-mode: multiply; }
+.piece-black .metal-overlay { mix-blend-mode: overlay; }
+.metal-overlay {
     position: absolute; inset: 0;
     z-index: 2;
     background: conic-gradient(from var(--metal-angle) at 50% 50%,
@@ -274,7 +274,7 @@
     pointer-events: none;
 }
 
-.chessboard-ui .stripes-overlay {
+.stripes-overlay {
     position: absolute; inset: 0;
     z-index: 2;
     background:
@@ -303,8 +303,8 @@
     mask-position: center;
     pointer-events: none;
 }
-.chessboard-ui .piece-white .stripes-overlay { mix-blend-mode: multiply; }
-.chessboard-ui .piece-black .stripes-overlay { mix-blend-mode: overlay; }
+.piece-white .stripes-overlay { mix-blend-mode: multiply; }
+.piece-black .stripes-overlay { mix-blend-mode: overlay; }
 
 .score-popup {
     position: absolute;

@@ -11,13 +11,17 @@
 <link rel="stylesheet" href="styles/base.css">
 <link rel="stylesheet" href="styles/hud.css">
 <link rel="stylesheet" href="styles/chessboard.css">
+<link rel="stylesheet" href="styles/jokers.css">
 </head>
 <body>
 <canvas id="bg-canvas"></canvas>
 <div id="game-layout">
   <div id="hud"></div>
   <div>
-    <div id="chessboard"></div>
+    <div style="display:flex;flex-direction:row;align-items:flex-start">
+      <div id="chessboard"></div>
+      <div id="jokers"></div>
+    </div>
 
     <div style="padding-top: 32px">
         <button onclick="resetChessboard()">Reset</button>
@@ -663,6 +667,7 @@
             id: 'WILD_JESTER',
             name: 'Wild Jester',
             description: '+4 mult every move',
+            type: 'Q',
             trigger(_ctx, _state) {
                 return { source: 'joker', sourceType: 'WILD_JESTER', destination: 'mult', operation: 'add', value: 4 };
             }
@@ -671,6 +676,7 @@
             id: 'SCHOLAR',
             name: 'Scholar',
             description: 'Bishop pair alive → +50 chips',
+            type: 'B',
             trigger({ chessGame, playerColor }, _state) {
                 if (!chessGame.hasBishopPair(playerColor)) return null;
                 return { source: 'joker', sourceType: 'SCHOLAR', destination: 'add', operation: 'add', value: 50 };
@@ -680,6 +686,7 @@
             id: 'PREDATOR',
             name: 'Predator',
             description: 'Capture move → mult ×2',
+            type: 'N',
             trigger({ lastMove }, _state) {
                 if (!lastMove?.captured) return null;
                 return { source: 'joker', sourceType: 'PREDATOR', destination: 'mult', operation: 'mult', value: 2 };
@@ -689,14 +696,20 @@
 
     // Live joker instance wrapping a def. Holds per-instance state for stateful jokers (counters, cooldowns, etc.).
     class Joker {
-        constructor(def) {
+        constructor(def, options = {}) {
             this.instanceId = crypto.randomUUID();
             this.defId = def.id;
             this.name = def.name;
             this.description = def.description;
+            this.type = options.type || def.type || 'Q';
+            this.style = options.style || 'standard';
+            this.modifiers = new Set(options.modifiers ?? []);
+            this._color = options.color || 'w';
             // Mutable state bag — each def owns its own schema (e.g. { count: 0 })
             this.state = {};
         }
+
+        color() { return this._color; }
 
         evaluate(ctx) {
             return JOKER_DEFS[this.defId].trigger(ctx, this.state);
@@ -704,26 +717,37 @@
     }
 
     // Maintains ordered list of active Joker instances. collectEffects() returns effect objects ready for ScoreEngine.
-    class JokerRegistry {
+    class JokerRegistry extends EventEmitter {
         constructor() {
+            super();
             this._active = [];
         }
 
-        add(jokerId) {
+        add(jokerId, options = {}) {
             if (!JOKER_DEFS[jokerId]) throw new Error(`Unknown joker: ${jokerId}`);
-            const joker = new Joker(JOKER_DEFS[jokerId]);
+            const joker = new Joker(JOKER_DEFS[jokerId], options);
             this._active.push(joker);
+            this.emit('change', [...this._active]);
             return joker;
+        }
+
+        getActive() {
+            return [...this._active];
         }
 
         // Remove by instanceId so duplicate jokers can be targeted individually
         remove(instanceId) {
             this._active = this._active.filter(j => j.instanceId !== instanceId);
+            this.emit('change', [...this._active]);
         }
 
         collectEffects(ctx) {
             return this._active
-                .map(j => j.evaluate(ctx))
+                .map(j => {
+                    const effect = j.evaluate(ctx);
+                    if (!effect) return null;
+                    return { ...effect, sourceInstanceId: j.instanceId };
+                })
                 .filter(Boolean);
         }
     }
@@ -957,6 +981,60 @@
         }
     }
 
+    // Renders active jokers as cards. animateEffect() is called by AnimationCoordinator for joker-sourced effects.
+    class JokersUI {
+        constructor(element, renderPiece) {
+            this._el = typeof element === 'string' ? document.getElementById(element) : element;
+            this._renderPiece = renderPiece;
+            this._jokers = [];
+            this._cardEls = new Map(); // instanceId -> card element
+        }
+
+        render(jokers) {
+            this._el.innerHTML = '';
+            this._cardEls.clear();
+            this._jokers = [...jokers];
+            for (const joker of this._jokers) {
+                const card = this._buildCard(joker);
+                this._cardEls.set(joker.instanceId, card);
+                this._el.appendChild(card);
+            }
+        }
+
+        _buildCard(joker) {
+            const card = document.createElement('div');
+            card.className = 'joker-card';
+            card.innerHTML = `
+                <div class="joker-sprite">${this._renderPiece(joker)}</div>
+                <div class="joker-name">${joker.name}</div>
+                <div class="joker-desc">${joker.description}</div>
+            `;
+            return card;
+        }
+
+        animateEffect(instanceId, value) {
+            const el = this._cardEls.get(instanceId);
+            if (!el) return Promise.resolve();
+            return this._animate(el, value);
+        }
+
+        _animate(el, value) {
+            const popup = document.createElement('div');
+            popup.className = 'joker-score-popup';
+            const num = parseFloat(value);
+            popup.textContent = (num > 0 ? '+' : '') + num;
+            el.appendChild(popup);
+            el.animate([
+                { transform: 'scale(1.5)' },
+                { transform: 'scale(1)' },
+            ], { duration: 200, easing: 'ease-out' });
+            return popup.animate([
+                { transform: 'translateX(-50%) translateY(0)', opacity: 1 },
+                { transform: 'translateX(-50%) translateY(-32px)', opacity: 0 },
+            ], { duration: 600, easing: 'ease-out', fill: 'forwards' }).finished.then(() => popup.remove());
+        }
+    }
+
     // Owns the move animation queue. Pre-scores effects via ScoreEngine (no timing dependency),
     // then drives ChessboardUI and HudUI animations in sync: per effect, both UIs animate in parallel.
     class AnimationCoordinator {
@@ -999,7 +1077,7 @@
             for (const snap of snapshots) {
                 // Route joker effects to joker card, piece effects to board square
                 const fxAnim = snap.effect.source === 'joker' && this._jokerUI
-                    ? this._jokerUI.animateEffect(snap.effect.sourceType, snap.effect.value)
+                    ? this._jokerUI.animateEffect(snap.effect.sourceInstanceId, snap.effect.value)
                     : this._boardUI.animatePieceEffect(move.toRow, move.toCol, snap.effect.value);
                 const hudAnim = snap.isLast
                     ? this._hudUI.update(snap)
@@ -1030,9 +1108,15 @@
     });
 
     const hudUI = new HudUI('hud');
-    const animationCoordinator = new AnimationCoordinator(chessBoardUI, hudUI, scoreEngine);
-
     const jokerRegistry = new JokerRegistry();
+    const jokersUI = new JokersUI('jokers', piece => pngTheme.render(piece));
+    const animationCoordinator = new AnimationCoordinator(chessBoardUI, hudUI, scoreEngine, jokersUI);
+
+    jokerRegistry.on('change', jokers => jokersUI.render(jokers));
+
+    jokerRegistry.add('WILD_JESTER', { modifiers: ['holo'] });
+    jokerRegistry.add('SCHOLAR', { modifiers: ['gold'] });
+    jokerRegistry.add('PREDATOR');
 
     chessGame.on('move', move => {
         if (move.player !== PLAYER.USER) {
