@@ -6,7 +6,10 @@
         constructor() {
             super();
             this._overlay = this._buildOverlay();
-            document.body.appendChild(this._overlay);
+        }
+
+        mount(parent) {
+            parent.appendChild(this._overlay);
         }
 
         // bosses: array of opponent defs, each pre-annotated with scoreAtLeast

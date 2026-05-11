@@ -1,5 +1,5 @@
-    // Owns the move animation queue. Pre-scores effects via ScoreEngine (no timing dependency),
-    // then drives ChessboardUI and HudUI animations in sync: per effect, both UIs animate in parallel.
+    // Owns the move animation queue. Pre-scores steps via ScoreEngine (no timing dependency),
+    // then drives ChessboardUI and HudUI animations in sync: per step, both UIs animate in parallel.
     class AnimationCoordinator {
         constructor(boardUI, hudUI, scoreEngine, jokerUI = null) {
             this._boardUI = boardUI;
@@ -12,8 +12,8 @@
             this._onDrain = null;
         }
 
-        enqueue(move, effects) {
-            this._queue.push({ move, effects });
+        enqueue(move, steps) {
+            this._queue.push({ move, steps });
             if (!this._draining) this._drain();
         }
 
@@ -45,18 +45,29 @@
             cb?.();
         }
 
-        async _process({ move, effects }, gen) {
+        async _process({ move, steps }, gen) {
             // Score computed synchronously — no dependency on animation timing
-            const snapshots = this._scoreEngine.processEffects(effects);
+            const snapshots = this._scoreEngine.run(steps);
 
             await this._boardUI.slideMove(move);
             if (this._gen !== gen) return;
 
             for (const snap of snapshots) {
-                // Route joker effects to joker card, piece effects to board square
-                const fxAnim = snap.effect.source === 'joker' && this._jokerUI
-                    ? this._jokerUI.animateEffect(snap.effect.sourceInstanceId, snap.effect.value)
-                    : this._boardUI.animatePieceEffect(move.toRow, move.toCol, snap.effect.value);
+                const { step } = snap;
+
+                // Route by source type:
+                //   joker/edition → joker card UI
+                //   retrigger → board pulse with no number
+                //   piece → board square at destination
+                let fxAnim;
+                if (step.kind === 'retrigger') {
+                    fxAnim = this._boardUI.animatePieceEffect(move.toRow, move.toCol, null);
+                } else if ((step.source.type === 'joker' || step.source.type === 'edition') && this._jokerUI) {
+                    fxAnim = this._jokerUI.animateEffect(step.source.id, step.value);
+                } else {
+                    fxAnim = this._boardUI.animatePieceEffect(move.toRow, move.toCol, step.value);
+                }
+
                 const hudAnim = snap.isLast
                     ? this._hudUI.update(snap)
                     : this._hudUI.updatePartial(snap);

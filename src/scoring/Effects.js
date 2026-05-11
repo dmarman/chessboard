@@ -25,15 +25,33 @@
             stripes: [{ source: 'modifier', sourceType: 'stripes', destination: 'add',  operation: 'add', value: 5  }],
         };
 
-        static fromPiece({ style, type, modifiers }) {
-            const modifierEffects = modifiers
-                ? [...modifiers].flatMap(mod => Effects.MODIFIER[mod.toLowerCase()] ?? [])
+        // Returns ScoringStep[] for the ON_PIECE_SCORED phase.
+        // piece: { id, type, style, modifiers, name }
+        static stepsFromPiece({ id, type, style, modifiers, name }) {
+            const t = type.toLowerCase();
+            const label = name ?? t;
+
+            const effectToKind = e =>
+                e.destination === 'mult'
+                    ? (e.operation === 'mult' ? 'xmult' : 'mult')
+                    : 'chips';
+
+            const tableToSteps = (table, key) =>
+                (table[key] ?? []).map(e => makeScoringStep({
+                    event: EventType.ON_PIECE_SCORED,
+                    kind: effectToKind(e),
+                    value: e.value,
+                    source: { type: 'piece', id, label },
+                }));
+
+            const modSteps = modifiers
+                ? [...modifiers].flatMap(mod => tableToSteps(Effects.MODIFIER, mod.toLowerCase()))
                 : [];
 
             return [
-                ...(Effects.PIECE[type.toLowerCase()] ?? []),
-                ...(Effects.STYLE[style?.toLowerCase()] ?? []),
-                ...modifierEffects,
+                ...tableToSteps(Effects.PIECE, t),
+                ...tableToSteps(Effects.STYLE, style?.toLowerCase()),
+                ...modSteps,
             ];
         }
     }

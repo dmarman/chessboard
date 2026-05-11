@@ -5,9 +5,8 @@
         return [row, col];
     }
 
-    class Chessboard extends EventEmitter {
+    class Chessboard {
         constructor() {
-            super();
             this._board = this.createBoard();
             this.pieces = [];
         }
@@ -28,7 +27,7 @@
         setPiecesFromFen(fen, pieces) {
             this.pieces = [...pieces];
             // revert any promotion mutations so deck pieces return to their original type
-            this.pieces.forEach(p => { p.type = p._originalType; });
+            this.pieces.forEach(p => p.revertToOriginalType());
             this._board = this.createBoard();
             const consumed = new Set();
 

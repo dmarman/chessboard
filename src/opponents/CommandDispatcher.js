@@ -1,8 +1,5 @@
     // Executes typed command objects returned by power actions.
     // Powers never touch engines directly — they return commands, dispatcher owns execution.
-    //
-    // Supported command types:
-    //   ADD_SCORE   { type: 'ADD_SCORE', amount: Number }  — add (positive) or penalize (negative)
     class CommandDispatcher {
         constructor() {
             this._handlers = new Map();

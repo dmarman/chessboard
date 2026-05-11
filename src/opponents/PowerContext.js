@@ -52,26 +52,13 @@
         });
     }
 
-    function buildBoardFacts(chessGame) {
-        if (!chessGame) return Object.freeze({ hasBishopPair: Object.freeze({}), pieceCount: Object.freeze({}) });
-        const COLORS = ['w', 'b'];
-        const TYPES = ['p', 'n', 'b', 'r', 'q', 'k'];
-        const hasBishopPair = {};
-        const pieceCount = {};
-        for (const color of COLORS) {
-            hasBishopPair[color] = chessGame.hasBishopPair(color);
-            pieceCount[color] = Object.freeze(Object.fromEntries(TYPES.map(t => [t, chessGame.getPieceCount(t, color)])));
-        }
-        return Object.freeze({ hasBishopPair: Object.freeze(hasBishopPair), pieceCount: Object.freeze(pieceCount) });
-    }
-
-    function buildPowerContext({ chessGame, scoreEngine, turn, lastMove, playerColor } = {}) {
+    function buildPowerContext({ chessGame, chessboard, scoreEngine, turn, lastMove, playerColor } = {}) {
         return Object.freeze({
             fen: chessGame?.fen() ?? null,
             currentScore: scoreEngine?.score ?? 0,
             lastMove: moveDTO(lastMove),
             turn: turnDTO(turn),
             playerColor: playerColor ?? null,
-            boardFacts: buildBoardFacts(chessGame),
+            boardInspector: chessboard ? new BoardInspector(chessboard.getState()) : null,
         });
     }

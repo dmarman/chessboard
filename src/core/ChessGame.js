@@ -69,16 +69,4 @@
             return this.chessboard.getPieceAt(square);
         }
 
-        hasBishopPair(color) {
-            return this._boardPieces().filter(p => p.type.toLowerCase() === 'b' && p.color() === color).length >= 2;
-        }
-
-        getPieceCount(type, color) {
-            return this._boardPieces().filter(p => p.type.toLowerCase() === type.toLowerCase() && p.color() === color).length;
-        }
-
-        _boardPieces() {
-            return this.chessboard.getState().flat().filter(Boolean);
-        }
-
     }

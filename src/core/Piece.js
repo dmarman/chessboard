@@ -11,4 +11,8 @@
         color() {
             return this.type === this.type.toUpperCase() ? 'w' : 'b';
         }
+
+        revertToOriginalType() {
+            this.type = this._originalType;
+        }
     }

@@ -5,7 +5,6 @@ class GameController {
 
     constructor() {
         this._state = 'idle';
-        this._pendingWin = null;
 
         this._wallet = new Wallet();
         this._scoreEngine = new ScoreEngine();
@@ -28,6 +27,7 @@ class GameController {
             { regular: OPPONENT_CONFIG, bossDefs: BOSS_DEFS },
             { getScoreTarget, maxTournament: MAX_TOURNAMENT }
         );
+        this._outcomeResolver = new OutcomeResolver(this._tournamentManager, this._scoreEngine);
         this._commandDispatcher = new CommandDispatcher()
             .register('ADD_SCORE', ({ amount }, { scoreEngine }) => {
                 scoreEngine.processEffects([{ destination: 'add', operation: 'add', value: amount }]);
@@ -38,8 +38,10 @@ class GameController {
             });
         this._opponentUI = new OpponentUI(this._hudUI.opponentSlot);
         this._tournamentUI = new TournamentUI();
+        this._tournamentUI.mount(document.body);
         this._shopManager = new ShopManager();
         this._shopUI = new ShopUI();
+        this._shopUI.mount(document.body);
 
         this._initChessSet();
         this._wireEvents();
@@ -68,6 +70,7 @@ class GameController {
 
         const gameStartCtx = buildPowerContext({
             chessGame: this._chessGame,
+            chessboard: this._chessboard,
             scoreEngine: this._scoreEngine,
             playerColor: GameController.PLAYER_COLOR
         });
@@ -102,11 +105,11 @@ class GameController {
         } finally {
             await this._animationCoordinator.done();
             this._transitionTo('resolveOutcome');
-            this._resolvePendingWin();
+            this._resolveOutcome();
         }
     }
 
-    async autoMove() {
+    async autoMove() { // No scoring, intentional
         if (this._state !== 'idle' || this._chessGame.isGameOver()) return;
         this._transitionTo('playerMove');
         try {
@@ -121,7 +124,7 @@ class GameController {
         } finally {
             await this._animationCoordinator.done();
             this._transitionTo('resolveOutcome');
-            this._resolvePendingWin();
+            this._resolveOutcome();
         }
     }
 
@@ -131,28 +134,41 @@ class GameController {
 
     // --- Private ---
 
-    _transitionTo(state) {
-        this._state = state;
+    static _TRANSITIONS = {
+        idle:             ['playerMove'],
+        playerMove:       ['idle', 'cpuMove', 'resolveOutcome'],
+        cpuMove:          ['resolveOutcome'],
+        resolveOutcome:   ['idle', 'shop', 'game-over'],
+        shop:             ['tournamentSelect'],
+        tournamentSelect: ['idle'],
+        'game-over':      [],
+    };
+
+    _transitionTo(next) {
+        const allowed = GameController._TRANSITIONS[this._state];
+        if (!allowed) {
+            console.warn(`[StateMachine] Unknown state "${this._state}" — cannot transition to "${next}"`);
+            this._state = next;
+            return;
+        }
+        if (!allowed.includes(next)) {
+            throw new Error(`[StateMachine] Illegal transition: "${this._state}" → "${next}". Allowed: [${allowed.join(', ')}]`);
+        }
+        this._state = next;
     }
 
-    _handleWin(reason) {
-        if (this._pendingWin) return;
-        this._pendingWin = {
-            reason,
-            tournament: this._tournamentManager.currentTournament,
-            opponent: this._tournamentManager.currentOpponent,
-            score: this._scoreEngine.score,
-            reward: this._tournamentManager.getCurrent().reward,
-        };
-    }
-
-    _resolvePendingWin() {
-        if (!this._pendingWin) {
+    _resolveOutcome() {
+        const outcome = this._outcomeResolver.consume();
+        if (!outcome) {
             this._transitionTo('idle');
             return;
         }
-        const { reason, tournament, opponent, score, reward } = this._pendingWin;
-        this._pendingWin = null;
+        const { reason, tournament, opponent, score, reward } = outcome;
+        if (reason === 'loss') {
+            console.log(`[GAME RESULT] Loss by checkmate. Tournament: ${tournament}, Opponent: ${opponent}, Score: ${score}.`);
+            this._transitionTo('game-over');
+            return;
+        }
         this._wallet.add(reward);
         this._hudUI.setMoney(this._wallet.balance);
         console.log(`[GAME RESULT] Win by ${reason}. Tournament: ${tournament}, Opponent: ${opponent}, Score: ${score}. Reward: $${reward}. Money: $${this._wallet.balance}`);
@@ -221,6 +237,7 @@ class GameController {
                 }
                 const cpuCtx = buildPowerContext({
                     chessGame: this._chessGame,
+                    chessboard: this._chessboard,
                     scoreEngine: this._scoreEngine,
                     turn,
                     lastMove: primaryMove,
@@ -228,51 +245,44 @@ class GameController {
                 });
                 const cpuCommands = this._tournamentManager.triggerPowers('onOpponentMove', cpuCtx);
                 this._commandDispatcher.execute(cpuCommands, { scoreEngine: this._scoreEngine, chessGame: this._chessGame });
+                // Opponent just moved — if user is now in checkmate, user loses
+                this._outcomeResolver.notifyTurn({ isCheckmate, player }, PLAYER.USER);
                 return;
             }
 
-            // User turn: score primary piece, fire jokers, trigger opponent powers.
+            // User turn: build scoring pipeline, fire jokers, trigger opponent powers.
             // Secondary moves (castling rook) animate without scoring.
             const gameCtx = buildPowerContext({
                 chessGame: this._chessGame,
+                chessboard: this._chessboard,
                 scoreEngine: this._scoreEngine,
                 turn,
                 lastMove: primaryMove,
                 playerColor: GameController.PLAYER_COLOR
             });
-            const pieceEffects = Effects.fromPiece(primaryMove.piece);
-            const jokerCtx = buildPowerContext({
-                chessGame: this._chessGame,
-                scoreEngine: this._scoreEngine,
-                turn,
-                lastMove: primaryMove,
-                playerColor: GameController.PLAYER_COLOR
-            });
-            const jokerCommands = this._jokerRegistry.collectCommands(jokerCtx);
             const moveCommands = this._tournamentManager.triggerPowers('onMove', gameCtx);
 
-            // Non-scoring joker commands (MUTATE_PIECE, RETRIGGER, etc.) execute immediately
-            const jokerSideEffects = jokerCommands.filter(c => c.type !== 'SCORE_EFFECTS');
+            // Non-scoring joker side effects (MUTATE_PIECE, etc.) execute immediately
+            const jokerSideEffects = this._jokerRegistry.collectSideEffects(gameCtx);
             this._commandDispatcher.execute([...jokerSideEffects, ...moveCommands], { scoreEngine: this._scoreEngine, chessGame: this._chessGame });
 
-            // Scoring effects: flatten from SCORE_EFFECTS commands, carry sourceInstanceId per effect for animation
-            const jokerEffects = jokerCommands
-                .filter(c => c.type === 'SCORE_EFFECTS')
-                .flatMap(c => c.effects.map(e => ({ ...e, sourceInstanceId: c.sourceInstanceId })));
-
-            this._animationCoordinator.enqueue({ ...primaryMove, promotion: !!primaryMove.promotion }, [...pieceEffects, ...jokerEffects]);
+            // Build ordered ScoringStep[] for the full pipeline and enqueue for animation
+            const scoringSteps = ScoringPipeline.build(turn, gameCtx, this._jokerRegistry, this._chessboard.getState());
+            this._animationCoordinator.enqueue({ ...primaryMove, promotion: !!primaryMove.promotion }, scoringSteps);
             for (const m of moves.slice(1)) {
                 this._animationCoordinator.enqueue({ ...m, promotion: !!m.promotion }, []);
             }
             // User just moved — if CPU is now in checkmate, player won by chess
-            if (isCheckmate) this._handleWin('checkmate');
+            this._outcomeResolver.notifyTurn({ isCheckmate, player }, PLAYER.USER);
         });
 
         this._scoreEngine.on('reset', data => this._hudUI.reset(data));
         this._scoreEngine.on('update', ({ total }) => {
-            if (this._tournamentManager.checkBeat(total)) {
-                this._handleWin('score');
-            }
+            this._outcomeResolver.notifyScore(total);
+        });
+        this._scoreEngine.on('money', ({ amount }) => {
+            this._wallet.add(amount);
+            this._hudUI.setMoney(this._wallet.balance);
         });
     }
 }

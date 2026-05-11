@@ -15,7 +15,6 @@
                     </div>
                 </div>
             `;
-            document.body.appendChild(this._overlay);
 
             this._slotsEl = this._overlay.querySelector('.shop-slots');
             this._rerollBtn = this._overlay.querySelector('.shop-reroll-btn');
@@ -23,6 +22,10 @@
 
             this._rerollBtn.addEventListener('click', () => this.emit('reroll'));
             this._leaveBtn.addEventListener('click', () => this.emit('leave'));
+        }
+
+        mount(parent) {
+            parent.appendChild(this._overlay);
         }
 
         show(slots, money) {

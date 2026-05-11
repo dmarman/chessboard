@@ -1,4 +1,6 @@
-    // Maintains ordered list of active Joker instances. collectCommands() returns Command[] from all jokers.
+    // Maintains ordered list of active Joker instances.
+    // collectSteps(event, ctx) returns ScoringStep[] from all jokers that respond to that pipeline phase.
+    // collectCommands(ctx) is a legacy alias for non-scoring side effects — kept until GameController cutover.
     class JokerRegistry extends EventEmitter {
         constructor() {
             super();
@@ -23,8 +25,24 @@
             this.emit('change', [...this._active]);
         }
 
-        // Returns flat Command[] from all active jokers.
-        collectCommands(ctx) {
-            return this._active.flatMap(j => j.evaluate(ctx));
+        // Returns ScoringStep[] from all jokers that respond to this pipeline phase.
+        collectSteps(event, ctx) {
+            return this._active.flatMap(j => j.evaluate(event, ctx));
         }
+
+        // Returns non-scoring Command[] (MUTATE_PIECE, etc.) from all jokers.
+        collectSideEffects(ctx) {
+            return this._active.flatMap(j => j.evaluateSideEffects(ctx));
+        }
+
+        // Moves a joker to a new position in play order. Affects the sequence joker steps are collected.
+        reorder(instanceId, newIndex) {
+            const idx = this._active.findIndex(j => j.instanceId === instanceId);
+            if (idx === -1) return;
+            const [joker] = this._active.splice(idx, 1);
+            const clamped = Math.max(0, Math.min(newIndex, this._active.length));
+            this._active.splice(clamped, 0, joker);
+            this.emit('change', [...this._active]);
+        }
+
     }
