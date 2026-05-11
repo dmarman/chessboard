@@ -17,20 +17,24 @@
 <script src="src/jokers/joker-defs.js"></script>
 <script src="src/jokers/Joker.js"></script>
 <script src="src/jokers/JokerRegistry.js"></script>
+<script src="src/opponents/tournament-config.js"></script>
 <script src="src/opponents/opponent-defs.js"></script>
 <script src="src/opponents/Opponent.js"></script>
 <script src="src/opponents/OpponentRegistry.js"></script>
+<script src="src/opponents/TournamentManager.js"></script>
 <script src="src/ui/PngPieceTheme.js"></script>
 <script src="src/ui/ChessboardUI.js"></script>
 <script src="src/ui/HudUI.js"></script>
 <script src="src/ui/JokersUI.js"></script>
 <script src="src/ui/OpponentUI.js"></script>
+<script src="src/ui/TournamentUI.js"></script>
 <script src="src/ui/AnimationCoordinator.js"></script>
 <link rel="stylesheet" href="styles/base.css">
 <link rel="stylesheet" href="styles/hud.css">
 <link rel="stylesheet" href="styles/chessboard.css">
 <link rel="stylesheet" href="styles/jokers.css">
 <link rel="stylesheet" href="styles/opponents.css">
+<link rel="stylesheet" href="styles/tournament.css">
 </head>
 <body>
 <canvas id="bg-canvas"></canvas>
@@ -46,6 +50,7 @@
         <button onclick="resetChessboard()">Reset</button>
         <button onclick="randomMove()">Random move</button>
         <button onclick="autoMove()">Auto move</button>
+        <button onclick="showTournament()">Tournament</button>
     </div>
 
   </div>
@@ -71,16 +76,31 @@
     const jokersUI = new JokersUI('jokers', piece => pngTheme.render(piece));
     const animationCoordinator = new AnimationCoordinator(chessBoardUI, hudUI, scoreEngine, jokersUI);
     const opponentRegistry = new OpponentRegistry();
+    const tournamentManager = new TournamentManager(opponentRegistry);
     const opponentUI = new OpponentUI(hudUI.opponentSlot);
+    const tournamentUI = new TournamentUI();
+
+    tournamentUI.on('select', id => tournamentManager.advanceOpponent());
 
     jokerRegistry.on('change', jokers => jokersUI.render(jokers));
     opponentRegistry.on('change', opp => opponentUI.render(opp));
+
+    function showTournament() {
+        const t = tournamentManager.currentTournament;
+        const boss = BOSS_DEFS[tournamentManager.currentBossId];
+        const opponents = [
+            OPPONENT_CONFIG.SMALL,
+            OPPONENT_CONFIG.BIG,
+            boss,
+        ].map(opp => ({ ...opp, scoreAtLeast: getScoreTarget(t, opp.multiplier) }));
+        tournamentUI.show(opponents);
+    }
 
     jokerRegistry.add('WILD_JESTER', { modifiers: ['holo'] });
     jokerRegistry.add('SCHOLAR', { modifiers: ['gold'] });
     jokerRegistry.add('PREDATOR');
 
-    opponentRegistry.set('SMALL_BLIND');
+    tournamentManager.start();
 
     chessGame.on('turn', turn => {
         const { player, moves, primaryMove } = turn;
@@ -111,7 +131,7 @@
 
     scoreEngine.on('reset', data => hudUI.reset(data));
     scoreEngine.on('update', ({ total }) => {
-        if (opponentRegistry.checkResign(total)) {
+        if (tournamentManager.checkBeat(total)) {
             // TODO: emit game-won event / show result screen
         }
     });

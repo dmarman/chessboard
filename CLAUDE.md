@@ -17,7 +17,8 @@ Do not delete comments in the code
 
 Balatro to our chess terms translation:
 Hand -> Move: we score per chess move.
-Blind -> Opponent: we play against someone in chess.
+Blind -> Opponent/Pairing: we play against someone in chess.
 Antes -> Tournaments?: to be defined. Our run contains tournaments.
 Run -> chess carreer?: to be defined.
 
+here you have the Balatro basecode if you have questions: /Users/domingo/Downloads/balatro-gba-main
