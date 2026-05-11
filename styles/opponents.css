@@ -1,0 +1,41 @@
+.hud-opponent-slot {
+    width: 100%;
+}
+
+.opponent-card {
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 6px;
+}
+
+.opponent-name {
+    font-size: 16px;
+    color: #e05555;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    line-height: 1.2;
+}
+
+.opponent-desc {
+    font-size: 14px;
+    color: #9090bb;
+    text-align: center;
+    line-height: 1.3;
+}
+
+.opponent-target {
+    font-size: 14px;
+    color: #aaaacc;
+    text-align: center;
+}
+
+.opponent-target-value {
+    color: #e05555;
+    font-size: 16px;
+    font-weight: bold;
+}

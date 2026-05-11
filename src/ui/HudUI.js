@@ -1,0 +1,179 @@
+    class HudUI {
+        constructor(element, options = {}) {
+            this._el = typeof element === 'string' ? document.getElementById(element) : element;
+            this._buildDOM();
+            this._currentTotal = 0;
+            this._chain = Promise.resolve();
+        }
+
+        get opponentSlot() { return this._opponentSlot; }
+
+        _buildDOM() {
+            this._el.innerHTML = `
+                <div class="hud-panel">
+                    <div class="hud-opponent-slot"></div>
+                    <div class="hud-divider"></div>
+                    <div class="hud-section total-score">
+                        <span class="hud-label">Score</span>
+                        <span class="hud-value">0</span>
+                    </div>
+                    <div class="hud-divider"></div>
+                    <div class="hud-section last-move">
+                        <div class="hud-row">
+                            <span class="hud-sub-value gained">&mdash;</span>
+                        </div>
+                        <div class="hud-row">
+                            <span class="hud-row-chips"><span class="hud-sub-value chips"></span></span>
+                            <span class="hud-row-x hud-sub-value">X</span>
+                            <span class="hud-row-mult"><span class="hud-sub-value mult"></span></span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            this._opponentSlot = this._el.querySelector('.hud-opponent-slot');
+            this._scoreVal  = this._el.querySelector('.total-score .hud-value');
+            this._chipsVal  = this._el.querySelector('.hud-sub-value.chips');
+            this._multVal   = this._el.querySelector('.hud-sub-value.mult');
+            this._gainedVal = this._el.querySelector('.hud-sub-value.gained');
+        }
+
+        _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        _enqueue(fn) {
+            const result = this._chain.then(() => fn());
+            this._chain = result.catch(() => {});
+            return result;
+        }
+
+        async _runSteps(steps) {
+            for (const step of steps) {
+                if (Array.isArray(step)) await Promise.all(step.map(s => s()));
+                else await step();
+            }
+        }
+
+        _setAndPulse(el, text, { twist = 0, duration = 200 } = {}) {
+            if (el.textContent === text) return Promise.resolve();
+            el.innerHTML = [...text].map(ch => `<span class="hud-digit">${ch}</span>`).join('');
+            const spans = [...el.querySelectorAll('.hud-digit')];
+            if (!spans.length) return Promise.resolve();
+            spans.forEach((span, i) => this._startFloat(span, i*1000));
+            const anims = spans.map((span, i) =>
+                span.animate(
+                    [
+                        { transform: `scale(1.6) rotate(${twist}deg)` },
+                        { transform: `scale(1.3) rotate(${-twist/2}deg)` },
+                        { transform: `scale(0.9) rotate(${twist/4}deg)` },
+                        { transform: 'scale(1) rotate(0deg)' }
+                    ],
+                    { duration: duration, delay: i * 50, easing: 'ease-out', fill: 'forwards', composite: 'add' }
+                )
+            );
+            return anims[anims.length - 1].finished;
+        }
+
+        // Idle float on a single span — random phase so digits drift out of sync.
+        _startFloat(span, delay) {
+            // cubic-bezier(0.37,0,0.63,1) approximates sin() acceleration curve at each quarter-period
+            span.animate(
+                [
+                    { transform: 'translateY(0px)',  easing: 'ease-out' },
+                    { transform: 'translateY(-1px)', easing: 'ease-in' },
+                    { transform: 'translateY(0px)',  easing: 'ease-out' },
+                    { transform: 'translateY(1px)',  easing: 'ease-in' },
+                    { transform: 'translateY(0px)' },
+                ],
+                { duration: 2000, delay: delay, iterations: Infinity }
+            );
+        }
+
+        // Each digit shakes independently in a loop. Fire-and-forget — store anims on el for cancellation.
+        _shakeDigits(el, intensity = 1) {
+            const s = intensity;
+            const spans = [...el.querySelectorAll('.hud-digit')];
+            el._shakeAnims = spans.map(span => {
+                span.style.transformOrigin = `${Math.random()*100}% ${Math.random()*50}%`;
+                const delay    = Math.random() * 60;
+                const duration = 200 + Math.random() * 100;
+                return span.animate(
+                    [
+                        { transform: 'rotate(0deg)' },
+                        { transform: `rotate(${(-6 + Math.random()*4)*s}deg)` },
+                        { transform: `rotate(${(5  + Math.random()*4)*s}deg)` },
+                        { transform: 'rotate(0deg)' },
+                    ],
+                    { duration, delay, easing: 'linear', iterations: Infinity, composite: 'add' }
+                );
+            });
+        }
+
+        _stopShakeDigits(el) {
+            el._shakeAnims?.forEach(a => a.cancel());
+            el._shakeAnims = null;
+        }
+
+        // Ticks a number from `from` to `to` over `duration` ms, writing plain text directly.
+        _animateCount(el, from, to, duration, format = v => `${v}`) {
+            if (el._countRaf) cancelAnimationFrame(el._countRaf);
+            return new Promise(resolve => {
+                const start = performance.now();
+                const tick = (now) => {
+                    const t = Math.min((now - start) / duration, 1);
+                    el.textContent = format(Math.round(from + (to - from) * t));
+                    if (t < 1) {
+                        el._countRaf = requestAnimationFrame(tick);
+                    } else {
+                        el._countRaf = null;
+                        if (to === 0) el.textContent = '';
+                        resolve();
+                    }
+                };
+                el._countRaf = requestAnimationFrame(tick);
+            });
+        }
+
+        updatePartial({ base, mult }) {
+            return this._enqueue(() => this._runSteps([
+                [
+                    () => this._setAndPulse(this._chipsVal, base > 0 ? `${base}` : '0'),
+                    () => this._setAndPulse(this._multVal, `${mult}`, { twist: 30, duration: 300 }),
+                ],
+            ]));
+        }
+
+        update({ gained, total, base, mult }) {
+            const prevTotal = this._currentTotal;
+            return this._enqueue(() => this._runSteps([
+                [
+                    () => this._setAndPulse(this._chipsVal, base > 0 ? `${base}` : '0'),
+                    () => this._setAndPulse(this._multVal, `${mult}`, { twist: 30, duration: 300 }),
+                ],
+                () => this._sleep(500),
+                [
+                    () => this._setAndPulse(this._chipsVal, '0'),
+                    () => this._setAndPulse(this._multVal, '0', { twist: 30, duration: 300 }),
+                    () => this._setAndPulse(this._gainedVal, gained > 0 ? `${gained}` : ''),
+                ],
+                () => { this._stopShakeDigits(this._gainedVal); this._shakeDigits(this._gainedVal, 0.5); },
+                () => this._sleep(1000),
+                [
+                    () => { this._stopShakeDigits(this._gainedVal); return this._animateCount(this._gainedVal, gained, 0, Math.min(gained*10, 300)); },
+                    () => this._animateCount(this._scoreVal, prevTotal, total, Math.min(total*10, 300), v => v.toLocaleString()),
+                ],
+                () => { this._currentTotal = total; },
+            ]));
+        }
+
+        reset({ score }) {
+            this._chain = Promise.resolve();
+            this._currentTotal = score;
+            this._enqueue(() => this._runSteps([
+                [
+                    () => this._setAndPulse(this._scoreVal, score.toLocaleString()),
+                    () => this._setAndPulse(this._chipsVal, '0'),
+                    () => this._setAndPulse(this._multVal, '0', { twist: 30, duration: 300 }),
+                    () => { this._stopShakeDigits(this._gainedVal); return this._setAndPulse(this._gainedVal, ''); },
+                ],
+            ]));
+        }
+    }

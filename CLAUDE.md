@@ -14,3 +14,10 @@ I know everything is one file now, but i will fix that soon.
 The important thing is everything is in its own class and we keep concerns decoupled and clean code.
 
 Do not delete comments in the code
+
+Balatro to our chess terms translation:
+Hand -> Move: we score per chess move.
+Blind -> Opponent: we play against someone in chess.
+Antes -> Tournaments?: to be defined. Our run contains tournaments.
+Run -> chess carreer?: to be defined.
+
