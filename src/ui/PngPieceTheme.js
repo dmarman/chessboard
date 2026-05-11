@@ -66,13 +66,16 @@
             const path = family[piece.type];
             if (!path) return '';
             const sprite = `style="--sprite:url(${path})"`;
+            // Accept both live Piece (Set modifiers, color() method) and snapshots (Array modifiers, color string)
+            const pieceColor = typeof piece.color === 'function' ? piece.color() : piece.color;
+            const hasMod = mod => Array.isArray(piece.modifiers) ? piece.modifiers.includes(mod) : piece.modifiers?.has(mod);
             const modifiers = Object.entries(PngPieceTheme.MODIFIERS)
-                .filter(([mod]) => piece.modifiers?.has(mod))
+                .filter(([mod]) => hasMod(mod))
                 .map(([, cls]) => `<div class="${cls}" data-sync-delay ${sprite}></div>`)
                 .join('');
-            const neonClass = piece.modifiers?.has('neon') ? 'neon' : '';
-            const glassClass = piece.modifiers?.has('glass') ? 'glass-tint' : '';
-            const colorClass = piece.color() === 'b' ? 'piece-black' : 'piece-white';
+            const neonClass = hasMod('neon') ? 'neon' : '';
+            const glassClass = hasMod('glass') ? 'glass-tint' : '';
+            const colorClass = pieceColor === 'b' ? 'piece-black' : 'piece-white';
 
             return `<div class="piece-modifier-wrapper ${neonClass} ${glassClass} ${colorClass}">
                 <img src="${path}" alt="${piece.type}" draggable="false" data-sync-delay>

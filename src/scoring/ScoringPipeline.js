@@ -16,11 +16,14 @@
          * @param {Piece[][]|null} boardState — 8×8 board for ON_NON_MOVED_PIECE phase; null skips phase
          * @returns {ScoringStep[]}
          */
-        static build(turn, ctx, registry, boardState = null) {
+        static build(turn, ctx, registry, boardState = null, opponentSteps = []) {
             const steps = [];
 
             // Phase 1: ON_MOVE_PLAYED
             steps.push(...registry.collectSteps(EventType.ON_MOVE_PLAYED, ctx));
+
+            // Phase 1b: opponent onMove reactions — after move is established, before piece scoring
+            steps.push(...opponentSteps);
 
             // Phase 2+3: ON_PIECE_SCORED + ON_PIECE_SCORED_END (with retrigger expansion)
             const move = turn.primaryMove;
@@ -84,18 +87,12 @@
             for (const row of boardState) {
                 for (const piece of row) {
                     if (!piece) continue;
-                    if (piece.color() !== playerColor) continue;
+                    if (piece.color !== playerColor) continue;
                     if (piece.id === movingPieceId) continue;
                     // Extend ctx locally — heldPiece is only meaningful in this phase
                     const heldCtx = {
                         ...ctx,
-                        heldPiece: Object.freeze({
-                            id: piece.id,
-                            role: piece.type,
-                            color: piece.color(),
-                            modifiers: Object.freeze([...piece.modifiers]),
-                            label: piece.name ?? piece.type,
-                        }),
+                        heldPiece: piece,
                     };
                     steps.push(...registry.collectSteps(EventType.ON_NON_MOVED_PIECE, heldCtx));
                 }

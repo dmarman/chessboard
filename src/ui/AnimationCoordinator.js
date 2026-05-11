@@ -1,10 +1,9 @@
-    // Owns the move animation queue. Pre-scores steps via ScoreEngine (no timing dependency),
-    // then drives ChessboardUI and HudUI animations in sync: per step, both UIs animate in parallel.
+    // Owns the move animation queue. Receives pre-computed snapshots from the domain layer (GameController)
+    // and drives ChessboardUI and HudUI animations in sync: per step, both UIs animate in parallel.
     class AnimationCoordinator {
-        constructor(boardUI, hudUI, scoreEngine, jokerUI = null) {
+        constructor(boardUI, hudUI, jokerUI = null) {
             this._boardUI = boardUI;
             this._hudUI = hudUI;
-            this._scoreEngine = scoreEngine;
             this._jokerUI = jokerUI;
             this._queue = [];
             this._draining = false;
@@ -12,8 +11,8 @@
             this._onDrain = null;
         }
 
-        enqueue(move, steps) {
-            this._queue.push({ move, steps });
+        enqueue(move, snapshots) {
+            this._queue.push({ move, snapshots });
             if (!this._draining) this._drain();
         }
 
@@ -45,10 +44,7 @@
             cb?.();
         }
 
-        async _process({ move, steps }, gen) {
-            // Score computed synchronously — no dependency on animation timing
-            const snapshots = this._scoreEngine.run(steps);
-
+        async _process({ move, snapshots }, gen) {
             await this._boardUI.slideMove(move);
             if (this._gen !== gen) return;
 

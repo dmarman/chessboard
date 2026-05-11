@@ -12,7 +12,7 @@
         }
 
         getState() {
-            return this._board.map(row => [...row]);
+            return this._board.map(row => row.map(piece => piece ? piece.toSnapshot() : null));
         }
 
         getPieceAt(pos) {

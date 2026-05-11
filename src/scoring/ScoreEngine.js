@@ -61,25 +61,12 @@
             return snapshots;
         }
 
-        // Shim for legacy Effect[] shapes (opponent CommandDispatcher handlers).
-        // New code should use run() with ScoringStep[] directly.
-        // Pre-computes all effects for a move and returns scored snapshots — no event emission, no timing dependency.
-        processEffects(effects) {
-            const validEffects = effects.filter(e => e.value != null);
-            if (!validEffects.length) return [];
-
-            const steps = validEffects.map(e => makeScoringStep({
-                event: EventType.ON_PIECE_SCORED,
-                kind: e.destination === 'mult'
-                    ? (e.operation === 'mult' ? 'xmult' : 'mult')
-                    : 'chips',
-                value: e.value,
-                source: {
-                    type: e.source ?? 'piece',
-                    id: e.sourceInstanceId ?? e.sourceType ?? 'unknown',
-                    label: e.sourceType ?? e.source ?? 'unknown',
-                },
-            }));
-            return this.run(steps);
+        // Out-of-band score credit for non-move contexts (onGameStart rewards, shop bonuses, etc.).
+        // Bypasses the move pipeline — no base/mult chain, no retrigger, no joker interaction.
+        applyBonus(amount) {
+            if (!amount) return;
+            this.gained = amount;
+            this.score += amount;
+            this.emit('update', { gained: amount, total: this.score });
         }
     }

@@ -15,4 +15,16 @@
         revertToOriginalType() {
             this.type = this._originalType;
         }
+
+        toSnapshot() {
+            return Object.freeze({
+                id: this.id,
+                type: this.type,
+                color: this.color(),
+                style: this.style,
+                modifiers: Object.freeze([...this.modifiers]),
+                name: this.name,
+                label: this.name ?? this.type,
+            });
+        }
     }

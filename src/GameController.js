@@ -21,7 +21,7 @@ class GameController {
         this._jokerRegistry = new JokerRegistry();
         this._jokersUI = new JokersUI('jokers', piece => this._pngTheme.render(piece));
         this._animationCoordinator = new AnimationCoordinator(
-            this._chessBoardUI, this._hudUI, this._scoreEngine, this._jokersUI
+            this._chessBoardUI, this._hudUI, this._jokersUI
         );
         this._tournamentManager = new TournamentManager(
             { regular: OPPONENT_CONFIG, bossDefs: BOSS_DEFS },
@@ -29,12 +29,28 @@ class GameController {
         );
         this._outcomeResolver = new OutcomeResolver(this._tournamentManager, this._scoreEngine);
         this._commandDispatcher = new CommandDispatcher()
+            // ADD_SCORE: non-move bonus (onGameStart rewards, setup effects). Bypasses move pipeline.
             .register('ADD_SCORE', ({ amount }, { scoreEngine }) => {
-                scoreEngine.processEffects([{ destination: 'add', operation: 'add', value: amount }]);
+                scoreEngine.applyBonus(amount);
             })
-            // SCORE_EFFECTS: opponent powers that need base/mult chain scoring (outside animation)
-            .register('SCORE_EFFECTS', ({ effects }, { scoreEngine }) => {
-                scoreEngine.processEffects(effects);
+            // SCORE_EFFECTS: opponent onMove reactions. Returns steps for injection into the move pipeline
+            // at phase 1b (after ON_MOVE_PLAYED, before ON_PIECE_SCORED).
+            .register('SCORE_EFFECTS', ({ effects }) => {
+                const pipelineSteps = effects
+                    .filter(e => e.value != null)
+                    .map(e => makeScoringStep({
+                        event: EventType.ON_MOVE_PLAYED,
+                        kind: e.destination === 'mult'
+                            ? (e.operation === 'mult' ? 'xmult' : 'mult')
+                            : 'chips',
+                        value: e.value,
+                        source: {
+                            type: e.source ?? 'opponent',
+                            id: e.sourceInstanceId ?? e.sourceType ?? 'unknown',
+                            label: e.sourceType ?? e.source ?? 'unknown',
+                        },
+                    }));
+                return { pipelineSteps };
             });
         this._opponentUI = new OpponentUI(this._hudUI.opponentSlot);
         this._tournamentUI = new TournamentUI();
@@ -93,7 +109,7 @@ class GameController {
         if (this._state !== 'idle' || this._chessGame.isGameOver()) return;
         this._transitionTo('playerMove');
         try {
-            const moves = this._chessGame.moves({ verbose: true });
+            const moves = this._chessGame.moves();
             const pickedMove = moves[Math.floor(Math.random() * moves.length)];
             this._chessGame.move(pickedMove, PLAYER.USER);
 
@@ -264,11 +280,15 @@ class GameController {
 
             // Non-scoring joker side effects (MUTATE_PIECE, etc.) execute immediately
             const jokerSideEffects = this._jokerRegistry.collectSideEffects(gameCtx);
-            this._commandDispatcher.execute([...jokerSideEffects, ...moveCommands], { scoreEngine: this._scoreEngine, chessGame: this._chessGame });
+            this._commandDispatcher.execute(jokerSideEffects, { scoreEngine: this._scoreEngine, chessGame: this._chessGame });
 
-            // Build ordered ScoringStep[] for the full pipeline and enqueue for animation
-            const scoringSteps = ScoringPipeline.build(turn, gameCtx, this._jokerRegistry, this._chessboard.getState());
-            this._animationCoordinator.enqueue({ ...primaryMove, promotion: !!primaryMove.promotion }, scoringSteps);
+            // Opponent onMove reactions yield pipeline steps (phase 1b); side effects execute immediately
+            const opponentSteps = this._commandDispatcher.executeAndCollect(moveCommands, { scoreEngine: this._scoreEngine, chessGame: this._chessGame });
+
+            // Score the turn in the domain layer — fires 'update'/'money' events for wallet and outcome
+            const scoringSteps = ScoringPipeline.build(turn, gameCtx, this._jokerRegistry, this._chessboard.getState(), opponentSteps);
+            const snapshots = this._scoreEngine.run(scoringSteps);
+            this._animationCoordinator.enqueue({ ...primaryMove, promotion: !!primaryMove.promotion }, snapshots);
             for (const m of moves.slice(1)) {
                 this._animationCoordinator.enqueue({ ...m, promotion: !!m.promotion }, []);
             }

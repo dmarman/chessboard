@@ -7,10 +7,10 @@
         }
 
         hasBishopPair(color) {
-            return this._pieces.filter(p => p.type.toLowerCase() === 'b' && p.color() === color).length >= 2;
+            return this._pieces.filter(p => p.type.toLowerCase() === 'b' && p.color === color).length >= 2;
         }
 
         getPieceCount(type, color) {
-            return this._pieces.filter(p => p.type.toLowerCase() === type.toLowerCase() && p.color() === color).length;
+            return this._pieces.filter(p => p.type.toLowerCase() === type.toLowerCase() && p.color === color).length;
         }
     }

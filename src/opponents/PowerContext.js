@@ -1,25 +1,13 @@
     // Builds read-only context passed to power actions.
     // No engine refs — powers get facts only, never direct engine access.
 
-    // Extract scoring-safe primitives from a Piece — no live object refs leak out.
-    function pieceDTO(piece) {
-        if (!piece) return null;
-        return Object.freeze({
-            id: piece.id,
-            role: piece.type,
-            color: piece.color(),
-            modifiers: Object.freeze([...piece.modifiers]),
-            name: piece.name ?? null,
-        });
-    }
-
     // Extract scoring-safe primitives from a move record — no live Piece refs leak out.
     function moveDTO(move) {
         if (!move) return null;
         return Object.freeze({
-            piece: pieceDTO(move.piece),
+            piece: move.piece ?? null,
             pieceId: move.pieceId ?? move.piece?.id ?? null,
-            captured: pieceDTO(move.captured),
+            captured: move.captured ?? null,
             fromRow: move.fromRow,
             fromCol: move.fromCol,
             toRow: move.toRow,
@@ -43,7 +31,7 @@
             player: turn.player ?? null,
             moves,
             primaryMove,
-            captured: pieceDTO(turn.captured),
+            captured: turn.captured ?? null,
             isCastle: !!turn.isCastle,
             isEnPassant: !!turn.isEnPassant,
             isCheck: !!turn.isCheck,
