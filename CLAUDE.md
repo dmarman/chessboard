@@ -16,6 +16,8 @@ Do not delete comments in the code
 
 Balatro to our chess terms translation:
 Hand -> Move: we score per chess move.
+Card -> Piece: we have pieces, not cards.
+Held card -> not moved pieces. So the pieces that were not involved in the chess move.
 Blind -> Opponent/Pairing: we play against someone in chess.
 Antes -> Tournaments?: to be defined. Our run contains tournaments.
 Run -> chess carreer?: to be defined.

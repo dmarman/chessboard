@@ -1,4 +1,4 @@
-    // Maintains ordered list of active Joker instances. collectEffects() returns effect objects ready for ScoreEngine.
+    // Maintains ordered list of active Joker instances. collectCommands() returns Command[] from all jokers.
     class JokerRegistry extends EventEmitter {
         constructor() {
             super();
@@ -23,13 +23,8 @@
             this.emit('change', [...this._active]);
         }
 
-        collectEffects(ctx) {
-            return this._active
-                .map(j => {
-                    const effect = j.evaluate(ctx);
-                    if (!effect) return null;
-                    return { ...effect, sourceInstanceId: j.instanceId };
-                })
-                .filter(Boolean);
+        // Returns flat Command[] from all active jokers.
+        collectCommands(ctx) {
+            return this._active.flatMap(j => j.evaluate(ctx));
         }
     }

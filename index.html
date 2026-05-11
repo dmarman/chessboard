@@ -32,6 +32,8 @@
 <script src="src/ui/AnimationCoordinator.js"></script>
 <script src="src/shop/ShopManager.js"></script>
 <script src="src/ui/ShopUI.js"></script>
+<script src="src/Wallet.js"></script>
+<script src="src/GameController.js"></script>
 <link rel="stylesheet" href="styles/base.css">
 <link rel="stylesheet" href="styles/hud.css">
 <link rel="stylesheet" href="styles/chessboard.css">
@@ -51,237 +53,19 @@
     </div>
 
     <div style="padding-top: 32px">
-        <button onclick="resetChessboard()">Reset</button>
-        <button onclick="randomMove()">Random move</button>
-        <button onclick="autoMove()">Auto move</button>
-        <button onclick="showTournament()">Tournament</button>
+        <button onclick="run.resetChessboard()">Reset</button>
+        <button onclick="run.randomMove()">Random move</button>
+        <button onclick="run.autoMove()">Auto move</button>
+        <button onclick="run.showTournament()">Tournament</button>
     </div>
 
   </div>
 </div>
 
 <script>
-    document.body.style.background = THEME.pageBg;
-
-    const PLAYER_COLOR = 'w';
-    const scoreEngine = new ScoreEngine();
-    const chessboard = new Chessboard();
-    const chessSet = new ChessSet();
-    const chessGame = new ChessGame(chessboard);
-    const pngTheme = new PngPieceTheme();
-    const engine = new StockfishEngine();
-    const chessBoardUI = new ChessboardUI('chessboard', {
-        orientation: PLAYER_COLOR,
-        renderPiece: piece => pngTheme.render(piece)
-    });
-
-    const hudUI = new HudUI('hud');
-    const jokerRegistry = new JokerRegistry();
-    const jokersUI = new JokersUI('jokers', piece => pngTheme.render(piece));
-    const animationCoordinator = new AnimationCoordinator(chessBoardUI, hudUI, scoreEngine, jokersUI);
-    const tournamentManager = new TournamentManager(
-        { regular: OPPONENT_CONFIG, bossDefs: BOSS_DEFS },
-        { getScoreTarget, maxTournament: MAX_TOURNAMENT }
-    );
-    const commandDispatcher = new CommandDispatcher()
-        .register('ADD_SCORE', ({ amount }, { scoreEngine }) => {
-            scoreEngine.processEffects([{ destination: 'add', operation: 'add', value: amount }]);
-        });
-    const opponentUI = new OpponentUI(hudUI.opponentSlot);
-    const tournamentUI = new TournamentUI();
-    const shopManager = new ShopManager();
-    const shopUI = new ShopUI();
-
-    tournamentUI.on('select', id => {
-        tournamentManager.advanceOpponent();
-        resetChessboard();
-    });
-
-    shopUI.on('buy', jokerId => {
-        const def = shopManager.buy(jokerId);
-        money -= def.price;
-        hudUI.setMoney(money);
-        jokerRegistry.add(jokerId);
-        shopUI.refresh(shopManager.currentSlots(), money);
-    });
-
-    shopUI.on('reroll', () => {
-        money -= shopManager.getRerollCost();
-        hudUI.setMoney(money);
-        const newSlots = shopManager.reroll();
-        shopUI.refresh(newSlots, money);
-    });
-
-    shopUI.on('leave', () => {
-        shopManager.leave();
-        shopUI.hide();
-        showTournament(tournamentManager.peekNextOpponent());
-    });
-
-    jokerRegistry.on('change', jokers => jokersUI.render(jokers));
-    tournamentManager.on('change', opp => {
-        opponentUI.render(opp);
-        hudUI.setProgress(tournamentManager.currentTournament, tournamentManager.maxTournament, tournamentManager.currentOpponent);
-    });
-
-    function showTournament(activeSlot) {
-        tournamentUI.show(tournamentManager.getTournamentOpponents(activeSlot));
-    }
-
-    tournamentManager.start();
-    shopManager.init();
-
-    let money = 0;
-
-    // Win is recorded synchronously mid-move; resolved in each move function's finally block
-    // after animations drain and _moveInProgress is cleared.
-    let _pendingWin = null;
-
-    function handleWin(reason) {
-        if (_pendingWin) return;
-        _pendingWin = {
-            reason,
-            tournament: tournamentManager.currentTournament,
-            opponent: tournamentManager.currentOpponent,
-            score: scoreEngine.score,
-            reward: tournamentManager.getCurrent().reward,
-        };
-    }
-
-    function _resolvePendingWin() {
-        if (!_pendingWin) return;
-        const { reason, tournament, opponent, score, reward } = _pendingWin;
-        _pendingWin = null;
-        money += reward;
-        hudUI.setMoney(money);
-        console.log(`[GAME RESULT] Win by ${reason}. Tournament: ${tournament}, Opponent: ${opponent}, Score: ${score}. Reward: $${reward}. Money: $${money}`);
-        const slots = shopManager.roll();
-        shopUI.show(slots, money);
-    }
-
-    chessGame.on('turn', turn => {
-        const { player, moves, primaryMove, isCheckmate } = turn;
-
-        if (player !== PLAYER.USER) {
-            // Opponent/engine turn: animate all physical moves (both pieces for castling),
-            // then let opponent powers react to the engine's move.
-            for (const m of moves) {
-                animationCoordinator.enqueue({ ...m, promotion: !!m.promotion }, []);
-            }
-            const cpuCtx = buildPowerContext({ chessGame, scoreEngine, turn, lastMove: primaryMove, playerColor: PLAYER_COLOR });
-            const cpuCommands = tournamentManager.triggerPowers('onOpponentMove', cpuCtx);
-            commandDispatcher.execute(cpuCommands, { scoreEngine, chessGame });
-            return;
-        }
-
-        // User turn: score primary piece, fire jokers, trigger opponent powers.
-        // Secondary moves (castling rook) animate without scoring.
-        const gameCtx = buildPowerContext({ chessGame, scoreEngine, turn, lastMove: primaryMove, playerColor: PLAYER_COLOR });
-        const pieceEffects = Effects.fromPiece(primaryMove.piece);
-        const jokerEffects = jokerRegistry.collectEffects({ chessGame, turn, lastMove: primaryMove, scoreEngine, playerColor: PLAYER_COLOR });
-        const moveCommands = tournamentManager.triggerPowers('onMove', gameCtx);
-        commandDispatcher.execute(moveCommands, { scoreEngine, chessGame });
-
-        animationCoordinator.enqueue({ ...primaryMove, promotion: !!primaryMove.promotion }, [...pieceEffects, ...jokerEffects]);
-        for (const m of moves.slice(1)) {
-            animationCoordinator.enqueue({ ...m, promotion: !!m.promotion }, []);
-        }
-        // User just moved — if CPU is now in checkmate, player won by chess
-        if (isCheckmate) handleWin('checkmate');
-    });
-
-    scoreEngine.on('reset', data => hudUI.reset(data));
-    scoreEngine.on('update', ({ total }) => {
-        if (tournamentManager.checkBeat(total)) {
-            handleWin('score');
-        }
-    });
-
-    const randomSubset = (arr, max) => { // no need to use fisher-yates, test function only
-        const count = Math.floor(Math.random() * (max + 1)); // 0..max
-        const shuffled = [...arr].sort(() => Math.random() - 0.5); // no need to use fisher-yates, test function only
-        return shuffled.slice(0, count);
-    };
-    for (const type of ['P','P','P','P','P','P','P','P','p','p','p','p','p','p','p','p','r','n','b','q','k','b','n','r','R','N','B','Q','K','B','N','R']) {
-        chessSet.addPiece(type, {
-            //modifiers: randomSubset(ALL_MODIFIERS, 3), // no need to use fisher-yates, test function only
-            //style: ALL_STYLES[Math.floor(Math.random() * ALL_STYLES.length)],
-        });
-    }
-
-    let _moveInProgress = false;
-
-    (async () => { await resetChessboard(); })();
-
-    async function resetChessboard() {
-        if (_moveInProgress) return;
-        _moveInProgress = true;
-        animationCoordinator.reset();
-        chessGame.reset();
-        scoreEngine.reset();
-
-        chessSet.shufflePieces();
-        chessGame.setPiecesFromFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', chessSet.getPieces());
-        chessBoardUI.initBoard(chessboard.getState());
-
-        const gameStartCtx = buildPowerContext({ chessGame, scoreEngine, playerColor: PLAYER_COLOR });
-        const startCommands = tournamentManager.triggerPowers('onGameStart', gameStartCtx);
-        commandDispatcher.execute(startCommands, { scoreEngine, chessGame });
-
-        //chessBoardUI.drawArrow('d1', 'h5', '#ff0000');
-        console.log(chessGame)
-        try {
-            if(PLAYER_COLOR === 'b') {
-                const results = await engine.search({ fen: chessGame.fen(), movetime: 100 });
-                chessGame.move(results[0].move);
-            }
-        } finally {
-            await animationCoordinator.done();
-            _moveInProgress = false;
-        }
-    }
-
-    async function randomMove() {
-        if (_moveInProgress || chessGame.isGameOver()) return;
-        _moveInProgress = true;
-        try {
-            const moves = chessGame.moves({ verbose: true });
-            const pickedMove = moves[Math.floor(Math.random() * moves.length)];
-
-            chessGame.move(pickedMove, PLAYER.USER);
-
-            if (chessGame.isGameOver()) return;
-
-            const results = await engine.search({ fen: chessGame.fen(), movetime: 100 });
-
-            chessGame.move(results[0].move, PLAYER.CPU);
-        } finally {
-            await animationCoordinator.done();
-            _moveInProgress = false;
-            _resolvePendingWin();
-        }
-    }
-
-    async function autoMove() {
-        if (_moveInProgress || chessGame.isGameOver()) return;
-        _moveInProgress = true;
-        try {
-            let results = await engine.search({ fen: chessGame.fen(), movetime: 10 });
-            chessGame.move(results[0].move, PLAYER.AUTO);
-
-            if (chessGame.isGameOver()) return;
-
-            results = await engine.search({ fen: chessGame.fen(), movetime: 10 });
-            chessGame.move(results[0].move, PLAYER.CPU);
-        } finally {
-            await animationCoordinator.done();
-            _moveInProgress = false;
-            _resolvePendingWin();
-        }
-    }
-
-
     initProceduralBackground();
+    const run = new GameController();
+    run.start();
 </script>
 
 </body>

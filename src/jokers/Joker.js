@@ -15,7 +15,11 @@
 
         color() { return this._color; }
 
+        // Returns Command[] — each command tagged with this joker's instanceId.
         evaluate(ctx) {
-            return JOKER_DEFS[this.defId].trigger(ctx, this.state);
+            const result = JOKER_DEFS[this.defId].trigger(ctx, this.state);
+            if (!result) return [];
+            const commands = Array.isArray(result) ? result : [result];
+            return commands.map(cmd => ({ ...cmd, sourceInstanceId: this.instanceId }));
         }
     }
