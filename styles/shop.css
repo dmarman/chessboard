@@ -55,11 +55,11 @@
 }
 
 .shop-card__rarity {
-    font-size: 11px;
+    font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    font-weight: bold;
-    padding: 2px 8px;
+    padding: 5px 6px 3px 8px;
+    margin-bottom: 12px;
     border-radius: 3px;
     background: rgba(255,255,255,0.05);
 }
@@ -75,24 +75,22 @@
 .shop-card--legendary:hover { border-color: #ff9800; }
 
 .shop-card__name {
-    font-size: 16px;
+    font-size: 24px;
     color: #e0c97f;
     text-align: center;
-    font-weight: bold;
 }
 
 .shop-card__desc {
-    font-size: 12px;
-    color: #9090bb;
+    font-size: 16px;
+    color: #ffffff;
     text-align: center;
     line-height: 1.4;
     flex: 1;
 }
 
 .shop-card__price {
-    font-size: 18px;
+    font-size: 32px;
     color: #f0c040;
-    font-weight: bold;
     letter-spacing: 1px;
 }
 

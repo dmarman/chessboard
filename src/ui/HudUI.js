@@ -164,19 +164,19 @@
             return this._enqueue(() => this._runSteps([
                 [
                     () => this._setAndPulse(this._chipsVal, base > 0 ? `${base}` : '0'),
-                    () => this._setAndPulse(this._multVal, `${mult}`, { twist: 30, duration: 300 }),
+                    () => this._setAndPulse(this._multVal, `${mult}`, { twist: 30, duration: 200 }),
                 ],
-                () => this._sleep(500),
+                () => this._sleep(300),
                 [
                     () => this._setAndPulse(this._chipsVal, '0'),
-                    () => this._setAndPulse(this._multVal, '0', { twist: 30, duration: 300 }),
+                    () => this._setAndPulse(this._multVal, '0', { twist: 30, duration: 200 }),
                     () => this._setAndPulse(this._gainedVal, gained > 0 ? `${gained}` : ''),
                 ],
                 () => { this._stopShakeDigits(this._gainedVal); this._shakeDigits(this._gainedVal, 0.5); },
-                () => this._sleep(1000),
+                () => this._sleep(300),
                 [
-                    () => { this._stopShakeDigits(this._gainedVal); return this._animateCount(this._gainedVal, gained, 0, Math.min(gained*10, 300)); },
-                    () => this._animateCount(this._scoreVal, prevTotal, total, Math.min(total*10, 300), v => v.toLocaleString()),
+                    () => { this._stopShakeDigits(this._gainedVal); return this._animateCount(this._gainedVal, gained, 0, Math.min(gained*10, 200)); },
+                    () => this._animateCount(this._scoreVal, prevTotal, total, Math.min(total*10, 200), v => v.toLocaleString()),
                 ],
                 () => { this._currentTotal = total; },
             ]));
