@@ -5,7 +5,11 @@
             this._originalType = type; // preserved through promotions so deck piece can be reverted
             this.name = options.name || null;
             this.style = options.style || 'classic';
-            this.modifiers = new Set(options.modifiers ?? []);
+            this.modifiers = new Set(
+                typeof options.modifiers === 'string'
+                    ? [options.modifiers]
+                    : options.modifiers ?? []
+            );
         }
 
         color() {

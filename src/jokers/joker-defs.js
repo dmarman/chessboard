@@ -166,7 +166,7 @@
                 return [makeScoringStep({
                     event: EventType.ON_PIECE_SCORED,
                     kind: 'retrigger',
-                    value: null,
+                    value: 'null',
                     source: { type: 'joker', id: 'ECHO_KNIGHT', label: 'Echo Knight' },
                 })];
             }
@@ -186,6 +186,245 @@
                     kind: 'xmult',
                     value: 200,
                     source: { type: 'joker', id: 'CORONATION', label: 'Coronation' },
+                })];
+            }
+        },
+        IRON_THRONE: {
+            id: 'IRON_THRONE',
+            name: 'Iron Throne',
+            description: 'Queen or Rook moved → +3 mult',
+            type: 'Q',
+            rarity: 'common',
+            price: 5,
+            events: ['ON_PIECE_SCORED'],
+            trigger({ lastMove }, _state) {
+                const t = lastMove?.piece?.type?.toLowerCase();
+                if (t !== 'q' && t !== 'r') return null;
+                return [makeScoringStep({
+                    event: EventType.ON_PIECE_SCORED,
+                    kind: 'mult',
+                    value: 3,
+                    source: { type: 'joker', id: 'IRON_THRONE', label: 'Iron Throne' },
+                })];
+            }
+        },
+        HEDGE_KNIGHT: {
+            id: 'HEDGE_KNIGHT',
+            name: 'Hedge Knight',
+            description: 'Bishop or Knight moved → +4 mult',
+            type: 'B',
+            rarity: 'common',
+            price: 5,
+            events: ['ON_PIECE_SCORED'],
+            trigger({ lastMove }, _state) {
+                const t = lastMove?.piece?.type?.toLowerCase();
+                if (t !== 'b' && t !== 'n') return null;
+                return [makeScoringStep({
+                    event: EventType.ON_PIECE_SCORED,
+                    kind: 'mult',
+                    value: 4,
+                    source: { type: 'joker', id: 'HEDGE_KNIGHT', label: 'Hedge Knight' },
+                })];
+            }
+        },
+        RANK_AND_FILE: {
+            id: 'RANK_AND_FILE',
+            name: 'Rank and File',
+            description: 'Pawn moved → +10 mult',
+            type: 'P',
+            rarity: 'common',
+            price: 5,
+            events: ['ON_PIECE_SCORED'],
+            trigger({ lastMove }, _state) {
+                if (lastMove?.piece?.type?.toLowerCase() !== 'p') return null;
+                return [makeScoringStep({
+                    event: EventType.ON_PIECE_SCORED,
+                    kind: 'mult',
+                    value: 10,
+                    source: { type: 'joker', id: 'RANK_AND_FILE', label: 'Rank and File' },
+                })];
+            }
+        },
+        LONGSTRIDER: {
+            id: 'LONGSTRIDER',
+            name: 'Longstrider',
+            description: 'Sliding piece (Queen, Rook or Bishop) moved → +2 mult',
+            type: 'B',
+            rarity: 'common',
+            price: 5,
+            events: ['ON_PIECE_SCORED'],
+            trigger({ lastMove }, _state) {
+                const t = lastMove?.piece?.type?.toLowerCase();
+                if (t !== 'q' && t !== 'r' && t !== 'b') return null;
+                return [makeScoringStep({
+                    event: EventType.ON_PIECE_SCORED,
+                    kind: 'mult',
+                    value: 2,
+                    source: { type: 'joker', id: 'LONGSTRIDER', label: 'Longstrider' },
+                })];
+            }
+        },
+        OFFICER_CLASS: {
+            id: 'OFFICER_CLASS',
+            name: 'Officer Class',
+            description: 'Non-pawn moved → +1 mult',
+            type: 'Q',
+            rarity: 'common',
+            price: 5,
+            events: ['ON_PIECE_SCORED'],
+            trigger({ lastMove }, _state) {
+                if (lastMove?.piece?.type?.toLowerCase() === 'p') return null;
+                return [makeScoringStep({
+                    event: EventType.ON_PIECE_SCORED,
+                    kind: 'mult',
+                    value: 1,
+                    source: { type: 'joker', id: 'OFFICER_CLASS', label: 'Officer Class' },
+                })];
+            }
+        },
+        FOOT_SOLDIER_BANE: {
+            id: 'FOOT_SOLDIER_BANE',
+            name: "Foot Soldier's Bane",
+            description: 'Capture a pawn → +15 mult',
+            type: 'P',
+            rarity: 'common',
+            price: 4,
+            events: ['ON_MOVE_PLAYED'],
+            trigger({ lastMove }, _state) {
+                if (lastMove?.captured?.type?.toLowerCase() !== 'p') return null;
+                return [makeScoringStep({
+                    event: EventType.ON_MOVE_PLAYED,
+                    kind: 'mult',
+                    value: 15,
+                    source: { type: 'joker', id: 'FOOT_SOLDIER_BANE', label: "Foot Soldier's Bane" },
+                })];
+            }
+        },
+        MINOR_HUNTER: {
+            id: 'MINOR_HUNTER',
+            name: 'Minor Hunter',
+            description: 'Capture a bishop or knight → +10 mult',
+            type: 'N',
+            rarity: 'common',
+            price: 4,
+            events: ['ON_MOVE_PLAYED'],
+            trigger({ lastMove }, _state) {
+                const t = lastMove?.captured?.type?.toLowerCase();
+                if (t !== 'b' && t !== 'n') return null;
+                return [makeScoringStep({
+                    event: EventType.ON_MOVE_PLAYED,
+                    kind: 'mult',
+                    value: 10,
+                    source: { type: 'joker', id: 'MINOR_HUNTER', label: 'Minor Hunter' },
+                })];
+            }
+        },
+        CASTLE_CRASHER: {
+            id: 'CASTLE_CRASHER',
+            name: 'Castle Crasher',
+            description: 'Capture a rook → +20 mult',
+            type: 'R',
+            rarity: 'common',
+            price: 4,
+            events: ['ON_MOVE_PLAYED'],
+            trigger({ lastMove }, _state) {
+                if (lastMove?.captured?.type?.toLowerCase() !== 'r') return null;
+                return [makeScoringStep({
+                    event: EventType.ON_MOVE_PLAYED,
+                    kind: 'mult',
+                    value: 20,
+                    source: { type: 'joker', id: 'CASTLE_CRASHER', label: 'Castle Crasher' },
+                })];
+            }
+        },
+        REGICIDE: {
+            id: 'REGICIDE',
+            name: 'Regicide',
+            description: 'Capture the queen → +20 mult',
+            type: 'Q',
+            rarity: 'common',
+            price: 4,
+            events: ['ON_MOVE_PLAYED'],
+            trigger({ lastMove }, _state) {
+                if (lastMove?.captured?.type?.toLowerCase() !== 'q') return null;
+                return [makeScoringStep({
+                    event: EventType.ON_MOVE_PLAYED,
+                    kind: 'mult',
+                    value: 20,
+                    source: { type: 'joker', id: 'REGICIDE', label: 'Regicide' },
+                })];
+            }
+        },
+        PAWN_TROPHY: {
+            id: 'PAWN_TROPHY',
+            name: 'Pawn Trophy',
+            description: 'Capture a pawn → +40 chips',
+            type: 'P',
+            rarity: 'common',
+            price: 4,
+            events: ['ON_MOVE_PLAYED'],
+            trigger({ lastMove }, _state) {
+                if (lastMove?.captured?.type?.toLowerCase() !== 'p') return null;
+                return [makeScoringStep({
+                    event: EventType.ON_MOVE_PLAYED,
+                    kind: 'chips',
+                    value: 40,
+                    source: { type: 'joker', id: 'PAWN_TROPHY', label: 'Pawn Trophy' },
+                })];
+            }
+        },
+        MINOR_TROPHY: {
+            id: 'MINOR_TROPHY',
+            name: 'Minor Trophy',
+            description: 'Capture a bishop or knight → +10 chips',
+            type: 'N',
+            rarity: 'common',
+            price: 4,
+            events: ['ON_MOVE_PLAYED'],
+            trigger({ lastMove }, _state) {
+                const t = lastMove?.captured?.type?.toLowerCase();
+                if (t !== 'b' && t !== 'n') return null;
+                return [makeScoringStep({
+                    event: EventType.ON_MOVE_PLAYED,
+                    kind: 'chips',
+                    value: 10,
+                    source: { type: 'joker', id: 'MINOR_TROPHY', label: 'Minor Trophy' },
+                })];
+            }
+        },
+        TOWER_PLUNDER: {
+            id: 'TOWER_PLUNDER',
+            name: 'Tower Plunder',
+            description: 'Capture a rook → +50 chips',
+            type: 'R',
+            rarity: 'common',
+            price: 4,
+            events: ['ON_MOVE_PLAYED'],
+            trigger({ lastMove }, _state) {
+                if (lastMove?.captured?.type?.toLowerCase() !== 'r') return null;
+                return [makeScoringStep({
+                    event: EventType.ON_MOVE_PLAYED,
+                    kind: 'chips',
+                    value: 50,
+                    source: { type: 'joker', id: 'TOWER_PLUNDER', label: 'Tower Plunder' },
+                })];
+            }
+        },
+        ROYAL_BOUNTY: {
+            id: 'ROYAL_BOUNTY',
+            name: 'Royal Bounty',
+            description: 'Capture the queen → +50 chips',
+            type: 'Q',
+            rarity: 'common',
+            price: 4,
+            events: ['ON_MOVE_PLAYED'],
+            trigger({ lastMove }, _state) {
+                if (lastMove?.captured?.type?.toLowerCase() !== 'q') return null;
+                return [makeScoringStep({
+                    event: EventType.ON_MOVE_PLAYED,
+                    kind: 'chips',
+                    value: 50,
+                    source: { type: 'joker', id: 'ROYAL_BOUNTY', label: 'Royal Bounty' },
                 })];
             }
         },

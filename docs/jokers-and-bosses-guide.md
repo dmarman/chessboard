@@ -26,16 +26,30 @@ Jokers are static definitions with this shape:
 }
 ```
 
-The engine supports these joker trigger phases:
+The engine supports these joker trigger phases, in order:
 
-- `ON_MOVE_PLAYED`
-- `ON_PIECE_SCORED`
-- `ON_PIECE_SCORED_END`
-- `ON_NON_MOVED_PIECE`
-- `INDEPENDENT`
-- `ON_MOVE_SCORED_END`
+- **`ON_MOVE_PLAYED`** — fires once when the move is established. Move type bonuses land here (capture, check, castle, promotion, en passant). Jokers reacting to "what kind of move was this?" go here. No piece yet — just move context.
 
-These phases run in that exact order during scoring.
+- **`ON_PIECE_SCORED`** — fires for the moving piece. Piece's base chips come from here, then joker reactions to that piece. This phase can be retriggered (replayed up to 5×). Jokers caring about piece type (`lastMove.piece`) belong here.
+
+- **`ON_PIECE_SCORED_END`** — fires once after all retriggers for the moving piece are done. Good for "after piece scores, do X" without being re-played by retriggers.
+
+- **`ON_NON_MOVED_PIECE`** — fires once per friendly piece that did not move (bench / held-card equivalent). `ctx.heldPiece` is the piece being evaluated. Jokers like "each idle knight gives +10 chips" live here.
+
+- **`INDEPENDENT`** — passive always-on effects. No move or piece context needed. Joker edition modifiers (holo/poly/metal) also apply here. Jokers that give flat bonuses regardless of what happened.
+
+- **`ON_MOVE_SCORED_END`** — fires last, after all scoring is done. Use for counters, cooldowns, decay, once-per-round resets in `state`. Nothing here should add score — it is bookkeeping.
+
+Balatro analogy:
+
+| Phase | Balatro equivalent |
+|---|---|
+| `ON_MOVE_PLAYED` | Hand type scored |
+| `ON_PIECE_SCORED` | Each card scored |
+| `ON_PIECE_SCORED_END` | After card scoring done |
+| `ON_NON_MOVED_PIECE` | Held cards |
+| `INDEPENDENT` | Always-on jokers |
+| `ON_MOVE_SCORED_END` | End of hand cleanup |
 
 ### Joker context available in `trigger(ctx, state)`
 

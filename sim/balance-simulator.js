@@ -109,16 +109,18 @@ class Rng {
 class HeuristicScenarioGenerator {
     constructor(options = {}) {
         this._playerColor = options.playerColor ?? 'w';
-        this._captureRate = options.captureRate ?? 0.28;
+        this._captureRate = options.captureRate ?? 0.24;
         this._checkRate = options.checkRate ?? 0.12;
         this._checkmateRate = options.checkmateRate ?? 0.01;
-        this._castleRate = options.castleRate ?? 0.04;
+        this._castleRate = options.castleRate ?? 0.271;
+        this._kingsideCastleRate = options.kingsideCastleRate ?? 0.923;
         this._enPassantRate = options.enPassantRate ?? 0.01;
         this._promotionRate = options.promotionRate ?? 0.015;
         this._opponentCaptureRate = options.opponentCaptureRate ?? 0.22;
         this._opponentCheckRate = options.opponentCheckRate ?? 0.08;
         this._opponentPromotionRate = options.opponentPromotionRate ?? 0.005;
-        this._pieceWeights = options.pieceWeights ?? { P: 42, N: 15, B: 14, R: 12, Q: 10, K: 7 };
+        this._pieceWeights = options.pieceWeights ?? { P: 27, N: 18, B: 16, R: 16, Q: 12, K: 11 };
+        this._capturedPieceWeights = options.capturedPieceWeights ?? { P: 50, N: 74, B: 65, R: 45, Q: 51 };
         this._heldPieceRange = options.heldPieceRange ?? [5, 14];
     }
 
@@ -136,6 +138,8 @@ class HeuristicScenarioGenerator {
         const isCheck = rng.chance(this._checkRate);
         const isCheckmate = isCheck && rng.chance(this._checkmateRate);
         const isCastle = movedType === 'K' && rng.chance(this._castleRate);
+        const isKingsideCastle = isCastle && rng.chance(this._kingsideCastleRate);
+        const isQueensideCastle = isCastle && !isKingsideCastle;
         const isEnPassant = movedType === 'P' && isCapture && rng.chance(this._enPassantRate);
         const promotion = movedType === 'P' && rng.chance(this._promotionRate)
             ? rng.pick(['q', 'r', 'b', 'n'])
@@ -151,7 +155,7 @@ class HeuristicScenarioGenerator {
             heldPieces: makeHeldPieces(rng, this._heldPieceRange, this._playerColor),
         });
         const captured = isCapture
-            ? makePieceSnapshot({ id: `turn-${turnIndex}-captured`, type: rng.pick(['P', 'N', 'B', 'R', 'Q']), color: oppositeColor(this._playerColor) })
+            ? makePieceSnapshot({ id: `turn-${turnIndex}-captured`, type: rng.weightedPick(this._capturedPieceWeights), color: oppositeColor(this._playerColor) })
             : null;
 
         const primaryMove = Object.freeze({
@@ -174,6 +178,8 @@ class HeuristicScenarioGenerator {
             primaryMove,
             captured,
             isCastle,
+            isKingsideCastle,
+            isQueensideCastle,
             isEnPassant,
             isCheck,
             isCheckmate,
@@ -211,7 +217,7 @@ function makeHeldPieces(rng, range, color) {
     const count = rng.int(range[0], range[1]);
     const held = [];
     for (let i = 0; i < count; i++) {
-        const type = rng.weightedPick({ P: 45, N: 13, B: 13, R: 12, Q: 8, K: 1 });
+        const type = rng.weightedPick({ P: 52, N: 12, B: 12, R: 12, Q: 6, K: 6 });
         held.push(makePieceSnapshot({ id: `held-${i}-${crypto.randomUUID()}`, type, color }));
     }
     return held;
@@ -442,6 +448,13 @@ class BalanceSimulator {
                 opponentSteps
             );
 
+            const snapshots = scoreEngine.run(scoringSteps);
+
+            // final chips and mult for this turn — needed to compute marginal contributions
+            const lastSnapshot = snapshots.find(s => s.isLast);
+            const finalChips = lastSnapshot?.base ?? 0;
+            const finalMult  = lastSnapshot?.mult  ?? 1;
+
             for (const step of scoringSteps) {
                 const label = resolveSourceLabel(step.source, jokerSlots);
                 const existing = sources.get(label) ?? makeSourceStat(label);
@@ -450,11 +463,16 @@ class BalanceSimulator {
                 if (typeof step.value === 'number') {
                     existing.rawValue += step.value;
                     existing.valuesByKind[step.kind] = (existing.valuesByKind[step.kind] ?? 0) + step.value;
+
+                    // marginal contribution in actual score units (chips × mult)
+                    let effective = 0;
+                    if (step.kind === 'chips')  effective = step.value * finalMult;
+                    if (step.kind === 'mult')   effective = finalChips * step.value;
+                    if (step.kind === 'xmult')  effective = finalChips * finalMult * (1 - 1 / step.value);
+                    existing.effectiveScore = (existing.effectiveScore ?? 0) + effective;
                 }
                 sources.set(label, existing);
             }
-
-            scoreEngine.run(scoringSteps);
 
             const bossOpponentCommands = opponent ? opponent.triggerPowers('onOpponentMove', cpuCtx) : [];
             dispatcher.execute(bossOpponentCommands, { scoreEngine });
@@ -491,6 +509,7 @@ function makeSourceStat(label) {
         label,
         triggers: 0,
         rawValue: 0,
+        effectiveScore: 0,
         money: 0,
         kinds: {},
         valuesByKind: {},
@@ -519,6 +538,7 @@ function mergeMaps(target, source) {
         }
         existing.triggers += value.triggers;
         existing.rawValue += value.rawValue;
+        existing.effectiveScore = (existing.effectiveScore ?? 0) + (value.effectiveScore ?? 0);
         if (typeof value.money === 'number') existing.money = (existing.money ?? 0) + value.money;
         mergeObjectCounts(existing.kinds, value.kinds);
         mergeObjectCounts(existing.valuesByKind, value.valuesByKind);
@@ -534,13 +554,14 @@ function mergeObjectCounts(target, source) {
 function cloneStat(value) {
     return {
         ...value,
+        effectiveScore: value.effectiveScore ?? 0,
         kinds: { ...(value.kinds ?? {}) },
         valuesByKind: { ...(value.valuesByKind ?? {}) },
     };
 }
 
 function toSortedArray(map) {
-    return [...map.values()].sort((a, b) => (b.rawValue ?? 0) - (a.rawValue ?? 0));
+    return [...map.values()].sort((a, b) => (b.effectiveScore ?? b.rawValue ?? 0) - (a.effectiveScore ?? a.rawValue ?? 0));
 }
 
 function summarizeGames(perGame) {

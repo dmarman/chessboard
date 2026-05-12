@@ -11,6 +11,7 @@
             this._renderPiece = options.renderPiece ?? (() => '');
             this._orientation = options.orientation ?? 'w';
             this.pieceElements = new Map();
+            this.squareElements = new Map(); // algebraic ("e4") -> square <div>
             this.piecesLayer = null;
             this._styleEl = document.createElement('style');
             document.head.appendChild(this._styleEl);
@@ -31,10 +32,23 @@
 
         _updateStyles() {
             const s = this.squareSize;
+            const dot = Math.round(s * 0.28);
+            const ringBorder = Math.round(s * 0.10);
             this._styleEl.textContent = `
-                .chessboard-ui .chess-square { width: ${s}px; height: ${s}px; }
+                .chessboard-ui .chess-square { width: ${s}px; height: ${s}px; position: relative; cursor: pointer; }
                 .chessboard-ui .chess-square.light { background: ${this._lightColor}; }
                 .chessboard-ui .chess-square.dark { background: ${this._darkColor}; }
+                .chessboard-ui .chess-square.selected { box-shadow: inset 0 0 0 9999px rgba(255, 220, 60, 0.40); }
+                .chessboard-ui .chess-square.legal-move::after {
+                    content: ''; position: absolute; left: 50%; top: 50%;
+                    width: ${dot}px; height: ${dot}px; margin-left: -${dot/2}px; margin-top: -${dot/2}px;
+                    border-radius: 50%; background: rgba(0, 0, 0, 0.28); pointer-events: none; z-index: 5;
+                }
+                .chessboard-ui .chess-square.legal-move-capture::after {
+                    content: ''; position: absolute; inset: 0;
+                    border: ${ringBorder}px solid rgba(0, 0, 0, 0.32); border-radius: 50%;
+                    box-sizing: border-box; pointer-events: none; z-index: 5;
+                }
                 .chessboard-ui .piece {
                     position: absolute;
                     width: ${s}px;
@@ -49,19 +63,37 @@
             this._cancelAnimations();
             this.boardElement.innerHTML = '';
             this.pieceElements.clear();
+            this.squareElements.clear();
 
             const squaresLayer = document.createElement('div');
+            squaresLayer.classList.add('squares-layer');
             for (let i = 0; i < 8; i++) {
                 const row = document.createElement('div');
                 row.classList.add('chess-row');
                 for (let j = 0; j < 8; j++) {
+                    // i,j are visual row/col. Map to logical (row, col) using orientation.
+                    const [lRow, lCol] = this._toVisual(i, j); // _toVisual is its own inverse
+                    const square = this._squareFromRowCol(lRow, lCol);
                     const sq = document.createElement('div');
                     sq.classList.add('chess-square', (i + j) % 2 === 0 ? 'light' : 'dark');
+                    sq.dataset.square = square;
+                    sq.dataset.row = String(lRow);
+                    sq.dataset.col = String(lCol);
                     row.appendChild(sq);
+                    this.squareElements.set(square, sq);
                 }
                 squaresLayer.appendChild(row);
             }
             this.boardElement.appendChild(squaresLayer);
+
+            squaresLayer.addEventListener('click', (event) => {
+                const sq = event.target.closest('.chess-square');
+                if (!sq || !this.boardElement.contains(sq)) return;
+                const square = sq.dataset.square;
+                const row = parseInt(sq.dataset.row, 10);
+                const col = parseInt(sq.dataset.col, 10);
+                this.emit('squareClick', { square, row, col });
+            });
 
             this.piecesLayer = document.createElement('div');
             this.piecesLayer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none';
@@ -72,6 +104,31 @@
                     const piece = initialState[i][j];
                     if (piece) this.createPieceElement(piece, i, j);
                 }
+        }
+
+        // Logical (row, col) -> algebraic. row 0 = rank 8, col 0 = file 'a'.
+        _squareFromRowCol(row, col) {
+            return String.fromCharCode(97 + col) + (8 - row);
+        }
+
+        highlightSelected(square) {
+            const el = this.squareElements.get(square);
+            if (el) el.classList.add('selected');
+        }
+
+        highlightLegalMoves(moveSquares, captureSquares) {
+            const captureSet = new Set(captureSquares || []);
+            for (const sq of moveSquares || []) {
+                const el = this.squareElements.get(sq);
+                if (!el) continue;
+                el.classList.add(captureSet.has(sq) ? 'legal-move-capture' : 'legal-move');
+            }
+        }
+
+        clearHighlights() {
+            for (const el of this.squareElements.values()) {
+                el.classList.remove('selected', 'legal-move', 'legal-move-capture');
+            }
         }
 
         _posKey(row, col) { return `${row},${col}`; }
@@ -112,6 +169,7 @@
         }
 
         _showScoreEffect(el, value) {
+            if (value == null) return Promise.resolve();
             const rect = el.getBoundingClientRect();
             const boardRect = this.boardElement.getBoundingClientRect();
             const popup = document.createElement('div');

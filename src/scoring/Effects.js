@@ -1,4 +1,13 @@
     class Effects {
+        static MOVE_TYPE = {
+            'capture':      [{ source: 'moveType', sourceType: 'capture',      destination: 'mult', operation: 'add', value: 1 }],
+            'check':        [{ source: 'moveType', sourceType: 'check',        destination: 'mult', operation: 'add', value: 2 }],
+            'castle king':  [{ source: 'moveType', sourceType: 'castle king',  destination: 'mult', operation: 'add', value: 3 }],
+            'castle queen': [{ source: 'moveType', sourceType: 'castle queen', destination: 'mult', operation: 'add', value: 4 }],
+            'promotion':    [{ source: 'moveType', sourceType: 'promotion',    destination: 'mult', operation: 'add', value: 20 }],
+            'enpassant':    [{ source: 'moveType', sourceType: 'enpassant',    destination: 'mult', operation: 'add', value: 300 }],
+        };
+
         static PIECE = {
             p:  [{ source: 'piece', sourceType: 'p',  destination: 'add', operation: 'add', value: 1 }],
             n:  [{ source: 'piece', sourceType: 'n',  destination: 'add', operation: 'add', value: 3 }],
@@ -53,5 +62,21 @@
                 ...tableToSteps(Effects.STYLE, style?.toLowerCase()),
                 ...modSteps,
             ];
+        }
+
+        // Returns ScoringStep[] for move type effects.
+        // moveType: string (e.g. 'capture', 'check', 'promotion')
+        static stepsFromMoveType(moveType) {
+            const effectToKind = e =>
+                e.destination === 'mult'
+                    ? (e.operation === 'mult' ? 'xmult' : 'mult')
+                    : 'chips';
+
+            return (Effects.MOVE_TYPE[moveType] ?? []).map(e => makeScoringStep({
+                event: EventType.ON_MOVE_PLAYED,
+                kind: effectToKind(e),
+                value: e.value,
+                source: { type: 'moveType', label: moveType },
+            }));
         }
     }

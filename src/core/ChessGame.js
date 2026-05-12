@@ -51,6 +51,8 @@
                 primaryMove: physicalMoves[0],
                 captured: physicalMoves[0].captured,
                 isCastle: chessMove.isKingsideCastle() || chessMove.isQueensideCastle(),
+                isKingsideCastle: chessMove.isKingsideCastle(),
+                isQueensideCastle: chessMove.isQueensideCastle(),
                 isEnPassant: chessMove.isEnPassant(),
                 isCheck: this._chess.isCheck(),
                 isCheckmate: this._chess.isCheckmate(),

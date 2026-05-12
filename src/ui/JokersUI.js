@@ -38,8 +38,12 @@
         _animate(el, value) {
             const popup = document.createElement('div');
             popup.className = 'joker-score-popup';
-            const num = parseFloat(value);
-            popup.textContent = (num > 0 ? '+' : '') + num;
+            if (value == null) {
+                popup.textContent = 'Retrigger';
+            } else {
+                const num = parseFloat(value);
+                popup.textContent = (num > 0 ? '+' : '') + num;
+            }
             el.appendChild(popup);
             el.animate([
                 { transform: 'scale(1.5)' },

@@ -59,6 +59,13 @@ class GameController {
         this._shopUI = new ShopUI();
         this._shopUI.mount(document.body);
 
+        this._inputController = new InputController({
+            chessGame: this._chessGame,
+            chessboardUI: this._chessBoardUI,
+            gameController: this,
+            playerColor: GameController.PLAYER_COLOR,
+        });
+
         this._initChessSet();
         this._wireEvents();
     }
@@ -94,6 +101,11 @@ class GameController {
         this._commandDispatcher.execute(startCommands, { scoreEngine: this._scoreEngine, chessGame: this._chessGame });
 
         console.log(this._chessGame);
+
+         this._jokerRegistry.add('HEDGE_KNIGHT');
+         this._jokerRegistry.add('STABLEMASTER');
+         this._jokerRegistry.add('ECHO_KNIGHT');
+
         try {
             if (GameController.PLAYER_COLOR === 'b') {
                 const results = await this._engine.search({ fen: this._chessGame.fen(), movetime: 100 });
@@ -107,11 +119,16 @@ class GameController {
 
     async randomMove() {
         if (this._state !== 'idle' || this._chessGame.isGameOver()) return;
+        const moves = this._chessGame.moves();
+        const pickedMove = moves[Math.floor(Math.random() * moves.length)];
+        await this.playerMove(pickedMove.from, pickedMove.to, pickedMove.promotion);
+    }
+
+    async playerMove(from, to, promotion = null) {
+        if (this._state !== 'idle' || this._chessGame.isGameOver()) return;
         this._transitionTo('playerMove');
         try {
-            const moves = this._chessGame.moves();
-            const pickedMove = moves[Math.floor(Math.random() * moves.length)];
-            this._chessGame.move(pickedMove, PLAYER.USER);
+            this._chessGame.move({ from, to, promotion: promotion || undefined }, PLAYER.USER);
 
             if (this._chessGame.isGameOver()) return;
 
@@ -165,12 +182,14 @@ class GameController {
         if (!allowed) {
             console.warn(`[StateMachine] Unknown state "${this._state}" — cannot transition to "${next}"`);
             this._state = next;
+            this._inputController?.setEnabled(this._state === 'idle');
             return;
         }
         if (!allowed.includes(next)) {
             throw new Error(`[StateMachine] Illegal transition: "${this._state}" → "${next}". Allowed: [${allowed.join(', ')}]`);
         }
         this._state = next;
+        this._inputController?.setEnabled(this._state === 'idle');
     }
 
     _resolveOutcome() {
@@ -196,7 +215,7 @@ class GameController {
     _initChessSet() {
         for (const type of ['P','P','P','P','P','P','P','P','p','p','p','p','p','p','p','p','r','n','b','q','k','b','n','r','R','N','B','Q','K','B','N','R']) {
             this._chessSet.addPiece(type, {
-                //modifiers: randomSubset(ALL_MODIFIERS, 3), // no need to use fisher-yates, test function only
+                modifiers: ['holo', 'glass'],
                 //style: ALL_STYLES[Math.floor(Math.random() * ALL_STYLES.length)],
             });
         }

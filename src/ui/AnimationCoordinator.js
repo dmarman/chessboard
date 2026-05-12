@@ -52,12 +52,17 @@
                 const { step } = snap;
 
                 // Route by source type:
-                //   joker/edition → joker card UI
-                //   retrigger → board pulse with no number
-                //   piece → board square at destination
+                //   joker/edition retrigger → joker card UI
+                //   joker/edition scoring → joker card UI
+                //   piece retrigger → board pulse with no number
+                //   piece scoring → board square at destination
                 let fxAnim;
                 if (step.kind === 'retrigger') {
-                    fxAnim = this._boardUI.animatePieceEffect(move.toRow, move.toCol, null);
+                    if ((step.source.type === 'joker' || step.source.type === 'edition') && this._jokerUI) {
+                        fxAnim = this._jokerUI.animateEffect(step.source.id, null);
+                    } else {
+                        fxAnim = this._boardUI.animatePieceEffect(move.toRow, move.toCol, null);
+                    }
                 } else if ((step.source.type === 'joker' || step.source.type === 'edition') && this._jokerUI) {
                     fxAnim = this._jokerUI.animateEffect(step.source.id, step.value);
                 } else {
