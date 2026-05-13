@@ -241,7 +241,7 @@ class GameController {
     _initChessSet() {
         for (const type of ['P','P','P','P','P','P','P','P','p','p','p','p','p','p','p','p','r','n','b','q','k','b','n','r','R','N','B','Q','K','B','N','R']) {
             this._chessSet.addPiece(type, {
-                modifiers: ['holo'],
+                modifiers: [''],
                 //style: ALL_STYLES[Math.floor(Math.random() * ALL_STYLES.length)],
             });
         }

@@ -4,7 +4,7 @@
     const MAX_SHOP_JOKERS = 2;
     const REROLL_COST = 5;
 
-    const RARITY_WEIGHTS = [
+    const JOKER_RARITY_WEIGHTS = [
         { rarity: 'common',    threshold: 70  },
         { rarity: 'uncommon',  threshold: 95  },
         { rarity: 'rare',      threshold: 100 },
@@ -35,8 +35,9 @@
                 if (pool.length === 0) break;
 
                 const r = Math.floor(Math.random() * 100);
+
                 let rolledRarity = 'rare';
-                for (const { rarity, threshold } of RARITY_WEIGHTS) {
+                for (const { rarity, threshold } of JOKER_RARITY_WEIGHTS) {
                     if (r < threshold) { rolledRarity = rarity; break; }
                 }
 
