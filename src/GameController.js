@@ -76,8 +76,11 @@ class GameController {
         this._tournamentUI = new TournamentUI();
         this._tournamentUI.mount(document.body);
         this._shopManager = new ShopManager();
+        this._boosterPackManager = new BoosterPackManager();
         this._shopUI = new ShopUI();
         this._shopUI.mount(document.body);
+        this._packSelectionUI = new PackSelectionUI();
+        this._packSelectionUI.mount(document.body);
 
         this._inputController = new InputController({
             chessGame: this._chessGame,
@@ -187,8 +190,9 @@ class GameController {
     }
 
     showShop() {
-        const slots = this._shopManager.roll();
-        this._shopUI.show(slots, this._wallet.balance);
+        const jokerSlots = this._shopManager.roll();
+        const packSlots  = this._boosterPackManager.roll();
+        this._shopUI.show(jokerSlots, packSlots, this._wallet.balance);
     }
 
     // --- Private ---
@@ -234,14 +238,15 @@ class GameController {
         this._hudUI.setMoney(this._wallet.balance);
         console.log(`[GAME RESULT] Win by ${reason}. Tournament: ${tournament}, Opponent: ${opponent}, Score: ${score}. Reward: $${reward}. Money: $${this._wallet.balance}`);
         this._transitionTo('shop');
-        const slots = this._shopManager.roll();
-        this._shopUI.show(slots, this._wallet.balance);
+        const jokerSlots = this._shopManager.roll();
+        const packSlots  = this._boosterPackManager.roll();
+        this._shopUI.show(jokerSlots, packSlots, this._wallet.balance);
     }
 
     _initChessSet() {
         for (const type of ['P','P','P','P','P','P','P','P','p','p','p','p','p','p','p','p','r','n','b','q','k','b','n','r','R','N','B','Q','K','B','N','R']) {
             this._chessSet.addPiece(type, {
-                modifiers: [''],
+                modifiers: ['', 'gold'],
                 //style: ALL_STYLES[Math.floor(Math.random() * ALL_STYLES.length)],
             });
         }
@@ -254,19 +259,41 @@ class GameController {
             this.resetChessboard();
         });
 
-        this._shopUI.on('buy', jokerId => {
+        this._shopUI.on('buy-joker', jokerId => {
             const def = this._shopManager.buy(jokerId);
             this._wallet.spend(def.price);
             this._hudUI.setMoney(this._wallet.balance);
             this._jokerRegistry.add(jokerId);
-            this._shopUI.refresh(this._shopManager.currentSlots(), this._wallet.balance);
+            this._shopUI.refresh(this._shopManager.currentSlots(), this._boosterPackManager.currentSlots(), this._wallet.balance);
+        });
+
+        this._shopUI.on('buy-pack', packDef => {
+            const def = this._boosterPackManager.buy(packDef.id);
+            this._wallet.spend(def.price);
+            this._hudUI.setMoney(this._wallet.balance);
+            const content = this._boosterPackManager.generateContent(def);
+            this._packSelectionUI.show(def, content);
+        });
+
+        this._packSelectionUI.on('pieces-selected', pieces => {
+            for (const pieceData of pieces) {
+                const type      = pieceData.type.toUpperCase();
+                this._chessSet.addPiece(type, {
+                    style:       pieceData.style,
+                    modifiers:   pieceData.modifiers ?? [],
+                    enhancement: pieceData.enhancement ?? 'none',
+                    edition:     pieceData.edition ?? 'base',
+                });
+            }
+            this._shopUI.refresh(this._shopManager.currentSlots(), this._boosterPackManager.currentSlots(), this._wallet.balance);
         });
 
         this._shopUI.on('reroll', () => {
             this._wallet.spend(this._shopManager.getRerollCost());
             this._hudUI.setMoney(this._wallet.balance);
-            const newSlots = this._shopManager.reroll();
-            this._shopUI.refresh(newSlots, this._wallet.balance);
+            // Packs don't reroll — only jokers change
+            const newJokerSlots = this._shopManager.reroll();
+            this._shopUI.refresh(newJokerSlots, this._boosterPackManager.currentSlots(), this._wallet.balance);
         });
 
         this._shopUI.on('leave', () => {

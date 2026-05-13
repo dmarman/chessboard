@@ -4,6 +4,8 @@
             this.type = type; // 'R', 'N', 'B', 'Q', 'K', 'P'
             this._originalType = type; // preserved through promotions so deck piece can be reverted
             this.name = options.name || null;
+            this.enhancement = options.enhancement ?? 'none';
+            this.edition = options.edition ?? 'base';
             this.style = options.style || 'classic';
             this.modifiers = new Set(
                 typeof options.modifiers === 'string'
@@ -27,6 +29,8 @@
                 color: this.color(),
                 style: this.style,
                 modifiers: Object.freeze([...this.modifiers]),
+                enhancement: this.enhancement,
+                edition: this.edition,
                 name: this.name,
                 label: this.name ?? this.type,
             });
