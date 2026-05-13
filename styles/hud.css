@@ -2,73 +2,92 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    width: 256px;
-    margin-right: 32px;
-    align-self: flex-start;
-    padding-top: 4px;
+    width: 300px;
+    align-self: stretch;
+    margin: 0px 16px;
+    background-color: #333;
+    justify-content: center;
+    border-left: 3px red solid;
+    border-right: 3px red solid;
 }
 
 #hud .hud-panel {
-    background: #12121f;
-    border: 1.5px solid #3a3a5c;
-    border-radius: 10px;
-    padding: 18px 16px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05);
+    padding: 16px 16px;
     display: flex;
     flex-direction: column;
-    letter-spacing: 2px;
+    gap: 8px;
 }
 
 #hud .hud-section {
     display: flex;
+    flex-direction: row;
+    background-color: #222;
+    border-radius: 8px;
+    box-shadow: 0px 4px #111;
+}
+
+#hud .hud-chip-score-card {
     flex-direction: column;
-    gap: 4px;
 }
 
 #hud .hud-label {
-    font-size: 11px;
-    color: #6b6b9a;
-    text-transform: uppercase;
-    padding-bottom: 8px;
+    font-size: 24px;
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0px 16px;
+    align-self: center;
+    text-shadow: 2px 2px black;
+    gap: 4px;
 }
 
 #hud .total-score .hud-value {
     font-size: 48px;
-    color: #f5d76e;
+    color: #fff;
     text-align: center;
-    min-height: 50px;
-}
-
-#hud .hud-divider {
-    height: 1px;
-    background: linear-gradient(90deg, transparent, #3a3a5c, transparent);
-    margin: 14px 0;
+    width: 100%;
+    background: #333;
+    margin: 8px;
+    margin-right: 10px;
+    padding: 8px;
+    border-radius: 4px;
+    text-shadow: 2px 2px black;
+    margin-left: 0;
 }
 
 #hud .hud-row {
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 100%;
-    padding: 8px 0px;
-    min-height: 42px;
+    padding: 8px 10px;
 }
 
 #hud .hud-row-chips {
-    flex: 1;
-    text-align: right;
-    padding-right: 4px;
+    display: flex;
+    width: 100%;
+    justify-content: end;
+    background-color: #00b4ff;
+    border-radius: 4px;
+    padding: 8px;
+    box-shadow: 0px 4px #0044ff;
 }
 
 #hud .hud-row-x {
     flex: 0;
     padding: 0 8px;
+    padding-left: 9px;
+    color: red !important;
 }
 
 #hud .hud-row-mult {
-    flex: 1;
+    display: flex;
     text-align: left;
-    padding-left: 4px;
+    width: 100%;
+    background-color: red;
+    border-radius: 4px;
+    padding: 8px;
+    box-shadow: 0px 4px #880101;
 }
 
 #hud .hud-sub-label {
@@ -84,36 +103,47 @@
 
 #hud .hud-sub-value.chips {
     font-size: 48px;
-    color: #5bc8f5;
+    color: #fff;
 }
 
 #hud .hud-sub-value.mult {
     font-size: 48px;
-    color: #f56b6b;
+    color: #fff;
 }
 
 #hud .hud-sub-value.gained {
-    font-size: 56px;
-    min-height: 64px;
+    font-size: 54px;
     color: #ffffff;
+    height: 42px;
+    padding-top: 8px;
 }
 
 #hud .hud-digit {
     display: inline-block;
+    text-shadow: 2px 2px 1px rgba(0, 0, 0, 0.5);
 }
 
 #hud .hud-money-section {
     align-items: center;
+    padding: 8px 10px;
 }
 
 #hud .hud-money-value {
     font-size: 48px;
     color: #f0c040;
+    background: #333;
+    width: 100%;
+    border-radius: 4px;
+    padding: 8px;
+    text-align: center;
+    text-shadow: 2px 2px 1px rgba(0, 0, 0, 0.5);
 }
 
 #hud .hud-progress-section {
     flex-direction: row;
-    justify-content: space-around;
+    display: flex;
+    justify-content: space-between;
+    text-shadow: 2px 2px 1px rgba(0, 0, 0, 0.5);
 }
 
 #hud .hud-progress-col {
@@ -121,6 +151,7 @@
     flex-direction: column;
     align-items: center;
     gap: 2px;
+    margin: 8px 10px;
 }
 
 #hud .hud-progress-tournament,
@@ -128,6 +159,11 @@
     font-size: 48px;
     display: flex;
     align-items: center;
+    background-color: #333;
+    border-radius: 4px;
+    width: 100%;
+    justify-content: center;
+    padding: 4px 0px;
 }
 
 #hud .hud-progress-current {

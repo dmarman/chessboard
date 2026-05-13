@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="https://cdn.jsdelivr.net/npm/chess.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/howler@2.2.4/dist/howler.min.js"></script>
 <script src="stockfish-engine.js"></script>
 <script src="background.js"></script>
 <script src="src/EventEmitter.js"></script>
@@ -32,6 +33,7 @@
 <script src="src/ui/JokersUI.js"></script>
 <script src="src/ui/OpponentUI.js"></script>
 <script src="src/ui/TournamentUI.js"></script>
+<script src="src/ui/SoundManager.js"></script>
 <script src="src/ui/AnimationCoordinator.js"></script>
 <script src="src/shop/ShopManager.js"></script>
 <script src="src/ui/ShopUI.js"></script>
@@ -62,6 +64,7 @@
         <button onclick="run.randomMove()">Random move</button>
         <button onclick="run.autoMove()">Auto move</button>
         <button onclick="run.showTournament()">Tournament</button>
+        <button onclick="run.showShop()">Shop</button>
     </div>
 
   </div>

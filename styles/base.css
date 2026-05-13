@@ -16,5 +16,11 @@ button, input, select, textarea { font: inherit; }
 #game-layout {
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
+  align-items: center;
+  height: 100vh;
+}
+
+* {
+  text-box-trim: trim-both;
+    text-box-edge: cap alphabetic;
 }

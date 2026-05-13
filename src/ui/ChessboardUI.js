@@ -6,8 +6,8 @@
             this.squareSize = options.squareSize ?? 90;
             this._lightColor = options.lightColor ?? THEME.squareLight;
             this._darkColor = options.darkColor ?? THEME.squareDark;
-            this._transitionMs = options.transitionMs ?? 150;
-            this._shakeMs = options.shakeMs ?? 200;
+            this._transitionMs = options.transitionMs ?? 200;
+            this._shakeMs = options.shakeMs ?? 500;
             this._renderPiece = options.renderPiece ?? (() => '');
             this._orientation = options.orientation ?? 'w';
             this.pieceElements = new Map();

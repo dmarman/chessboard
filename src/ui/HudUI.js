@@ -1,6 +1,8 @@
     class HudUI {
         constructor(element, options = {}) {
             this._el = typeof element === 'string' ? document.getElementById(element) : element;
+            this._onScoreCalculate = options.onScoreCalculate ?? null;
+            this._onScoreAccum = options.onScoreAccum ?? null;
             this._buildDOM();
             this._currentTotal = 0;
             this._chain = Promise.resolve();
@@ -12,13 +14,14 @@
             this._el.innerHTML = `
                 <div class="hud-panel">
                     <div class="hud-opponent-slot"></div>
-                    <div class="hud-divider"></div>
                     <div class="hud-section total-score">
-                        <span class="hud-label">Score</span>
+                        <span class="hud-label">
+                            <span>Game</span>
+                            <span>score</span>
+                        </span>
                         <span class="hud-value">0</span>
                     </div>
-                    <div class="hud-divider"></div>
-                    <div class="hud-section">
+                    <div class="hud-section hud-chip-score-card">
                         <div class="hud-row">
                             <span class="hud-sub-value gained">&mdash;</span>
                         </div>
@@ -28,19 +31,21 @@
                             <span class="hud-row-mult"><span class="hud-sub-value mult"></span></span>
                         </div>
                     </div>
-                    <div class="hud-divider"></div>
                     <div class="hud-section hud-money-section">
                         <span class="hud-money-value">$0</span>
                     </div>
-                    <div class="hud-divider"></div>
-                    <div class="hud-section hud-progress-section">
-                        <div class="hud-progress-col">
-                            <span class="hud-label">Tournament</span>
-                            <span class="hud-progress-tournament">1/8</span>
+                    <div class="hud-progress-section">
+                        <div class="hud-section">
+                            <div class="hud-progress-col">
+                                <span class="hud-label">Tournament</span>
+                                <span class="hud-progress-tournament">1/8</span>
+                            </div>
                         </div>
-                        <div class="hud-progress-col">
-                            <span class="hud-label">Round</span>
-                            <span class="hud-progress-round">1/3</span>
+                        <div class="hud-section">
+                            <div class="hud-progress-col">
+                                <span class="hud-label">Round</span>
+                                <span class="hud-progress-round">1/3</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -92,7 +97,6 @@
 
         // Idle float on a single span — random phase so digits drift out of sync.
         _startFloat(span, delay) {
-            // cubic-bezier(0.37,0,0.63,1) approximates sin() acceleration curve at each quarter-period
             span.animate(
                 [
                     { transform: 'translateY(0px)',  easing: 'ease-out' },
@@ -150,6 +154,10 @@
             });
         }
 
+        showMoveLabel(labels) {
+            return this._enqueue(() => this._setAndPulse(this._gainedVal, labels.join(' + ')));
+        }
+
         updatePartial({ base, mult }) {
             return this._enqueue(() => this._runSteps([
                 [
@@ -164,21 +172,23 @@
             return this._enqueue(() => this._runSteps([
                 [
                     () => this._setAndPulse(this._chipsVal, base > 0 ? `${base}` : '0'),
-                    () => this._setAndPulse(this._multVal, `${mult}`, { twist: 30, duration: 200 }),
+                    () => this._setAndPulse(this._multVal, `${mult}`, { twist: 30, duration: 300 }),
                 ],
-                () => this._sleep(300),
+                () => this._sleep(500),
                 [
+                    () => this._onScoreCalculate?.(),
                     () => this._setAndPulse(this._chipsVal, '0'),
-                    () => this._setAndPulse(this._multVal, '0', { twist: 30, duration: 200 }),
+                    () => this._setAndPulse(this._multVal, '0', { twist: 30, duration: 300 }),
                     () => this._setAndPulse(this._gainedVal, gained > 0 ? `${gained}` : ''),
                 ],
-                () => { this._stopShakeDigits(this._gainedVal); this._shakeDigits(this._gainedVal, 0.5); },
-                () => this._sleep(300),
+                () => this._shakeDigits(this._gainedVal, 0.5),
+                () => this._sleep(500),
                 [
-                    () => { this._stopShakeDigits(this._gainedVal); return this._animateCount(this._gainedVal, gained, 0, Math.min(gained*10, 200)); },
+                    () => { this._onScoreAccum?.(); this._stopShakeDigits(this._gainedVal); return this._animateCount(this._gainedVal, gained, 0, Math.min(gained*10, 200)); },
                     () => this._animateCount(this._scoreVal, prevTotal, total, Math.min(total*10, 200), v => v.toLocaleString()),
                 ],
                 () => { this._currentTotal = total; },
+                () => this._sleep(400),
             ]));
         }
 

@@ -1,10 +1,11 @@
     // Owns the move animation queue. Receives pre-computed snapshots from the domain layer (GameController)
     // and drives ChessboardUI and HudUI animations in sync: per step, both UIs animate in parallel.
     class AnimationCoordinator {
-        constructor(boardUI, hudUI, jokerUI = null) {
+        constructor(boardUI, hudUI, jokerUI = null, soundManager = null) {
             this._boardUI = boardUI;
             this._hudUI = hudUI;
             this._jokerUI = jokerUI;
+            this._soundManager = soundManager;
             this._queue = [];
             this._draining = false;
             this._gen = 0;
@@ -45,8 +46,14 @@
         }
 
         async _process({ move, snapshots }, gen) {
+            this._soundManager?.play(this._moveSoundKey(move));
             await this._boardUI.slideMove(move);
             if (this._gen !== gen) return;
+
+            if (snapshots.length > 0) {
+                const labels = this._moveLabels(move);
+                if (labels.length) this._hudUI.showMoveLabel(labels);
+            }
 
             for (const snap of snapshots) {
                 const { step } = snap;
@@ -69,6 +76,11 @@
                     fxAnim = this._boardUI.animatePieceEffect(move.toRow, move.toCol, step.value);
                 }
 
+                if (step.kind === 'chips') this._soundManager?.play('chips_card');
+                else if (step.kind === 'mult')      this._soundManager?.play('mult');
+                else if (step.kind === 'xmult')     this._soundManager?.play('xmult');
+                else if (step.kind === 'retrigger') this._soundManager?.play('pop');
+
                 const hudAnim = snap.isLast
                     ? this._hudUI.update(snap)
                     : this._hudUI.updatePartial(snap);
@@ -77,6 +89,27 @@
             }
 
             this._boardUI.endMove(move.toRow, move.toCol);
+        }
+
+        _moveLabels(move) {
+            const labels = [];
+            if (move.isEnPassant)         labels.push('En Passant');
+            else if (move.captured)       labels.push('Capture');
+            if (move.isCastle)            labels.push('Castle');
+            if (move.promotion)           labels.push('Promotion');
+            if (move.isCheckmate)         labels.push('Checkmate');
+            else if (move.isCheck)        labels.push('Check');
+            if (!labels.length)           labels.push('Quiet');
+            return labels;
+        }
+
+        _moveSoundKey(move) {
+            if (move.isCheckmate)    return 'game_end';
+            if (move.isCheck)        return 'move_check';
+            if (move.promotion)      return 'promote';
+            if (move.captured)       return 'capture';
+            if (move.isCastle)       return 'castle';
+            return move.isOpponent ? 'move_opponent' : 'move_self';
         }
 
         reset() {

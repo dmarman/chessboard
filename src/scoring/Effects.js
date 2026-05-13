@@ -24,7 +24,7 @@
 
         // Each modifier can produce multiple effects; a piece may have several modifiers stacked
         static MODIFIER = {
-            holo:    [{ source: 'modifier', sourceType: 'holo',    destination: 'mult', operation: 'add', value: 5   }],
+            holo:    [{ source: 'modifier', sourceType: 'holo',    destination: 'add',  operation: 'add', value: 5   }],
             poly:    [{ source: 'modifier', sourceType: 'poly',    destination: 'mult', operation: 'add', value: 5   }],
             metal:   [{ source: 'modifier', sourceType: 'metal',   destination: 'add',  operation: 'add', value: 5  }],
             shine:   [{ source: 'modifier', sourceType: 'shine',   destination: 'add',  operation: 'add', value: 5  }],

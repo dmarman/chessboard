@@ -67,8 +67,8 @@ function initProceduralBackground() {
 
             float mask = (r + g + b) / 3.0;
 
-            vec3 lightColor = vec3(0.04, 0.04, 0.04);
-            vec3 darkColor  = vec3(0.03, 0.03, 0.03);
+            vec3 lightColor = vec3(0.005, 0.005, 0.005);
+            vec3 darkColor  = vec3(0.009, 0.009, 0.009);
 
             vec3 c = mix(darkColor, lightColor, mask);
 

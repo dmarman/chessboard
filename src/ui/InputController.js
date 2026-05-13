@@ -2,11 +2,12 @@
 // queries ChessGame for legal moves, drives UI highlights, calls GameController.playerMove
 // to commit moves. Enabled only while the game-state machine is 'idle'.
 class InputController {
-    constructor({ chessGame, chessboardUI, gameController, playerColor }) {
+    constructor({ chessGame, chessboardUI, gameController, playerColor, soundManager = null }) {
         this._chessGame = chessGame;
         this._ui = chessboardUI;
         this._gameController = gameController;
         this._playerColor = playerColor;
+        this._soundManager = soundManager;
 
         this._selected = null;             // algebraic square ("e4") or null
         this._legalFromSelected = [];      // move descriptors {from, to, promotion}
@@ -49,6 +50,7 @@ class InputController {
         // Click on another own piece -> switch selection.
         const piece = this._chessGame.getPieceAt(square);
         if (piece && piece.color === this._playerColor) {
+            this._soundManager?.play('card_deselect');
             this._clearSelection();
             this._trySelect(square);
             return;
@@ -67,6 +69,7 @@ class InputController {
 
         this._selected = square;
         this._legalFromSelected = legal;
+        this._soundManager?.play('card_focus');
 
         const targets = [...new Set(legal.map(m => m.to))];
         const captures = targets.filter(to => this._isCapture(square, to, piece));

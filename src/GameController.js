@@ -17,11 +17,31 @@ class GameController {
             orientation: GameController.PLAYER_COLOR,
             renderPiece: piece => this._pngTheme.render(piece)
         });
-        this._hudUI = new HudUI('hud');
+        this._soundManager = new SoundManager({
+            chips_card:     'audio/chips_card.wav',
+            mult:           'audio/mult.wav',
+            xmult:          'audio/xmult.wav',
+            pop:            'audio/pop.wav',
+            chips_generic:  'audio/chips_generic.wav',
+            chips_accum:    'audio/chips_accum.wav',
+            card_focus:     'audio/card_focus.wav',
+            card_deselect:  'audio/card_deselect.wav',
+            move_self:      'audio/chess/move-self.webm',
+            move_opponent:  'audio/chess/move-opponent.webm',
+            capture:        'audio/chess/capture.webm',
+            castle:         'audio/chess/castle.webm',
+            move_check:     'audio/chess/move-check.webm',
+            promote:        'audio/chess/promote.webm',
+            game_end:       'audio/chess/game-end.webm',
+        });
+        this._hudUI = new HudUI('hud', {
+            onScoreCalculate: () => this._soundManager.play('chips_generic'),
+            onScoreAccum:     () => this._soundManager.play('chips_accum'),
+        });
         this._jokerRegistry = new JokerRegistry();
         this._jokersUI = new JokersUI('jokers', piece => this._pngTheme.render(piece));
         this._animationCoordinator = new AnimationCoordinator(
-            this._chessBoardUI, this._hudUI, this._jokersUI
+            this._chessBoardUI, this._hudUI, this._jokersUI, this._soundManager
         );
         this._tournamentManager = new TournamentManager(
             { regular: OPPONENT_CONFIG, bossDefs: BOSS_DEFS },
@@ -64,6 +84,7 @@ class GameController {
             chessboardUI: this._chessBoardUI,
             gameController: this,
             playerColor: GameController.PLAYER_COLOR,
+            soundManager: this._soundManager,
         });
 
         this._initChessSet();
@@ -102,9 +123,9 @@ class GameController {
 
         console.log(this._chessGame);
 
-         this._jokerRegistry.add('HEDGE_KNIGHT');
-         this._jokerRegistry.add('STABLEMASTER');
-         this._jokerRegistry.add('ECHO_KNIGHT');
+         //this._jokerRegistry.add('HEDGE_KNIGHT');
+         //this._jokerRegistry.add('STABLEMASTER');
+         //this._jokerRegistry.add('ECHO_KNIGHT');
 
         try {
             if (GameController.PLAYER_COLOR === 'b') {
@@ -165,6 +186,11 @@ class GameController {
         this._tournamentUI.show(this._tournamentManager.getTournamentOpponents(activeSlot));
     }
 
+    showShop() {
+        const slots = this._shopManager.roll();
+        this._shopUI.show(slots, this._wallet.balance);
+    }
+
     // --- Private ---
 
     static _TRANSITIONS = {
@@ -215,7 +241,7 @@ class GameController {
     _initChessSet() {
         for (const type of ['P','P','P','P','P','P','P','P','p','p','p','p','p','p','p','p','r','n','b','q','k','b','n','r','R','N','B','Q','K','B','N','R']) {
             this._chessSet.addPiece(type, {
-                modifiers: ['holo', 'glass'],
+                modifiers: ['holo'],
                 //style: ALL_STYLES[Math.floor(Math.random() * ALL_STYLES.length)],
             });
         }
@@ -262,13 +288,13 @@ class GameController {
         });
 
         this._chessGame.on('turn', turn => {
-            const { player, moves, primaryMove, isCheckmate } = turn;
+            const { player, moves, primaryMove, isCheckmate, isCheck, isCastle, isEnPassant } = turn;
 
             if (player !== PLAYER.USER) {
                 // Opponent/engine turn: animate all physical moves (both pieces for castling),
                 // then let opponent powers react to the engine's move.
                 for (const m of moves) {
-                    this._animationCoordinator.enqueue({ ...m, promotion: !!m.promotion }, []);
+                    this._animationCoordinator.enqueue({ ...m, promotion: !!m.promotion, isOpponent: true, isCheckmate, isCheck, isCastle }, []);
                 }
                 const cpuCtx = buildPowerContext({
                     chessGame: this._chessGame,
@@ -307,9 +333,9 @@ class GameController {
             // Score the turn in the domain layer — fires 'update'/'money' events for wallet and outcome
             const scoringSteps = ScoringPipeline.build(turn, gameCtx, this._jokerRegistry, this._chessboard.getState(), opponentSteps);
             const snapshots = this._scoreEngine.run(scoringSteps);
-            this._animationCoordinator.enqueue({ ...primaryMove, promotion: !!primaryMove.promotion }, snapshots);
+            this._animationCoordinator.enqueue({ ...primaryMove, promotion: !!primaryMove.promotion, isCheckmate, isCheck, isCastle, isEnPassant: !!isEnPassant }, snapshots);
             for (const m of moves.slice(1)) {
-                this._animationCoordinator.enqueue({ ...m, promotion: !!m.promotion }, []);
+                this._animationCoordinator.enqueue({ ...m, promotion: !!m.promotion, isCheckmate, isCheck, isCastle }, []);
             }
             // User just moved — if CPU is now in checkmate, player won by chess
             this._outcomeResolver.notifyTurn({ isCheckmate, player }, PLAYER.USER);
