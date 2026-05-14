@@ -36,12 +36,14 @@
     ];
 
     // Factory — validates event, freezes output.
-    function makeScoringStep({ event, kind, value, source }) {
+    // animate: false marks base move-type steps — ScoreEngine runs them but AnimationCoordinator skips them.
+    function makeScoringStep({ event, kind, value, source, animate = true }) {
         if (!EventType[event]) throw new Error(`makeScoringStep: unknown event "${event}"`);
         return Object.freeze({
             event,
             kind,
             value: value ?? null,
+            animate,
             source: Object.freeze({ ...source }),
         });
     }

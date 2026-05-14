@@ -4,7 +4,7 @@ const { BalanceSimulator, HeuristicScenarioGenerator } = require('../sim/balance
 const ROOT = path.resolve(__dirname, '..');
 
 // Booster-pack standard weights — handy defaults to riff on.
-const STANDARD_ENHANCEMENT_WEIGHTS = { none: 56, glass: 8, metal: 8, gold: 8, rock: 6, stripes: 8, checkers: 6 };
+const STANDARD_ENHANCEMENT_WEIGHTS = { none: 60, glass: 8, metal: 8, gold: 8, rock: 6, stripes: 8, checkers: 6 };
 const STANDARD_EDITION_WEIGHTS     = { base: 82, shine: 4, holo: 3, poly: 1, neon: 1 };
 
 // Each scenario = { name, generatorOptions, runConfig }.
@@ -32,22 +32,22 @@ const SCENARIOS = [
         },
         runConfig: {},
     },
-    {
-        name: 'heavy gold (money test)',
-        generatorOptions: {
-            enhancementWeights: { none: 60, gold: 40 },
-            editionWeights:     { base: 1 },
-        },
-        runConfig: {},
-    },
-    {
-        name: 'standard + holo joker',
-        generatorOptions: {
-            enhancementWeights: STANDARD_ENHANCEMENT_WEIGHTS,
-            editionWeights:     STANDARD_EDITION_WEIGHTS,
-        },
-        runConfig: { jokers: [{ id: 'WILD_JESTER', edition: 'holo' }] },
-    },
+    // {
+    //     name: 'heavy gold (money test)',
+    //     generatorOptions: {
+    //         enhancementWeights: { none: 60, gold: 40 },
+    //         editionWeights:     { base: 1 },
+    //     },
+    //     runConfig: {},
+    // },
+    // {
+    //     name: 'standard + holo joker',
+    //     generatorOptions: {
+    //         enhancementWeights: STANDARD_ENHANCEMENT_WEIGHTS,
+    //         editionWeights:     STANDARD_EDITION_WEIGHTS,
+    //     },
+    //     runConfig: { jokers: [{ id: 'WILD_JESTER', edition: 'holo' }] },
+    // },
 ];
 
 function runScenario(scenario) {
@@ -72,6 +72,27 @@ function printScenario(name, result) {
         xmult: stat.valuesByKind.xmult ?? 0,
         money: stat.money,
     })));
+    if (result.comboStats?.length) {
+        console.log('Piece + move type combos');
+        const sortedCombos = [...result.comboStats].sort((a, b) => {
+            const avgA = (a.effectiveScore ?? 0) / Math.max(a.triggers, 1);
+            const avgB = (b.effectiveScore ?? 0) / Math.max(b.triggers, 1);
+            return avgB - avgA;
+        });
+        const maxAvg = sortedCombos.reduce((m, s) => Math.max(m, (s.effectiveScore ?? 0) / Math.max(s.triggers, 1)), 0);
+        const BAR_WIDTH = 24;
+        console.table(sortedCombos.map(stat => {
+            const avg = Math.round((stat.effectiveScore ?? 0) / Math.max(stat.triggers, 1));
+            const barLen = maxAvg > 0 ? Math.round((avg / maxAvg) * BAR_WIDTH) : 0;
+            return {
+                combo: stat.label,
+                triggers: stat.triggers,
+                effectiveScore: Math.round(stat.effectiveScore ?? 0),
+                avgScore: avg,
+                bar: '─'.repeat(barLen).padEnd(BAR_WIDTH),
+            };
+        }));
+    }
     if (result.ablations?.length) {
         console.log('Ablations');
         console.table(result.ablations.sort((a, b) => b.averageScoreDelta - a.averageScoreDelta));

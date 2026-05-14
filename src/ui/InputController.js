@@ -149,14 +149,14 @@ class InputController {
         }
     }
 
-    // Renders deterministic chips/mult preview for the selected piece.
-    // When `targetSquare` is a legal destination, folds in move-type effects
-    // (capture/check/castle/promotion/enpassant). Jokers intentionally excluded.
+    // Renders move-type chips/mult preview in the HUD.
+    // Piece value intentionally excluded — preview shows only the move type base.
+    // Defaults to 'quiet' when no target square or no special type.
     _showPreview(targetSquare) {
         if (!this._hudUI || !this._selectedPiece) return;
-        const moveTypes = targetSquare ? this._moveTypesFor(targetSquare) : [];
-        const preview = Effects.preview(this._selectedPiece, moveTypes);
-        const labels = targetSquare ? this._labelsFromMoveTypes(moveTypes) : [];
+        const moveTypes = targetSquare ? this._moveTypesFor(targetSquare) : ['quiet'];
+        const preview = Effects.preview(moveTypes);
+        const labels = this._labelsFromMoveTypes(moveTypes);
         this._hudUI.preview({ ...preview, labels });
     }
 
@@ -197,6 +197,7 @@ class InputController {
         else if (sanCore === 'O-O')   types.push('castle king');
         if (intent.promotion) types.push('promotion');
         if (isEnPassant)      types.push('enpassant');
+        if (!types.length)    types.push('quiet');
         return types;
     }
 

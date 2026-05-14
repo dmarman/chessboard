@@ -50,6 +50,12 @@
             await this._boardUI.slideMove(move);
             if (this._gen !== gen) return;
 
+            // Slide any bundled secondary pieces (castling rook) before scoring begins.
+            for (const secondary of move.secondaryMoves ?? []) {
+                await this._boardUI.slideMove(secondary);
+                if (this._gen !== gen) return;
+            }
+
             if (snapshots.length > 0) {
                 const labels = this._moveLabels(move);
                 if (labels.length) this._hudUI.showMoveLabel(labels);
@@ -57,6 +63,10 @@
 
             for (const snap of snapshots) {
                 const { step } = snap;
+
+                // Base move-type steps: scored but not animated — skip board/sound/HUD anim.
+                // ScoreEngine already ran them; subsequent animated steps carry the accumulated values.
+                if (step.animate === false) continue;
 
                 // Route by source type:
                 //   joker/edition retrigger → joker card UI
@@ -78,7 +88,8 @@
                     const hasSquare = step.source.row != null && step.source.col != null;
                     const row = hasSquare ? step.source.row : move.toRow;
                     const col = hasSquare ? step.source.col : move.toCol;
-                    fxAnim = this._boardUI.animatePieceEffect(row, col, step.value);
+
+                    fxAnim = this._boardUI.animatePieceEffect(row, col, step.value, step.kind);
                 }
 
                 if (step.kind === 'chips') this._soundManager?.play('chips_card');

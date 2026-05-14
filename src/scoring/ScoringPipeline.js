@@ -45,12 +45,13 @@
 
             // Phase 6: ON_MOVE_SCORED_END — decay, expiry, counters
             steps.push(...registry.collectSteps(EventType.ON_MOVE_SCORED_END, ctx));
-
+console.log(steps)
             return steps;
         }
 
         // Derives active move types from the turn DTO and returns their ScoringSteps.
         // Multiple types can stack (e.g. capture + check, enpassant + check).
+        // Falls back to 'quiet' when no special type applies.
         static _moveTypeSteps(turn) {
             const types = [];
             if (turn.captured || turn.isEnPassant) types.push('capture');
@@ -59,6 +60,7 @@
             if (turn.isQueensideCastle) types.push('castle queen');
             if (turn.promotion)         types.push('promotion');
             if (turn.isEnPassant)       types.push('enpassant');
+            if (!types.length)          types.push('quiet');
             return types.flatMap(t => Effects.stepsFromMoveType(t));
         }
 

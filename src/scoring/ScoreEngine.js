@@ -19,7 +19,7 @@
             if (!steps.length) return [];
 
             let base = 0;
-            let mult = 1;
+            let mult = 0;
             const snapshots = [];
 
             for (const [i, step] of steps.entries()) {

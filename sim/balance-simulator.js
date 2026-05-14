@@ -314,6 +314,7 @@ class BalanceSimulator {
         const perGame = [];
         const aggregateSources = new Map();
         const aggregateCommands = new Map();
+        const aggregateCombos = new Map();
 
         for (const plan of gamePlans) {
             const scoreEngine = new ScoreEngine();
@@ -343,6 +344,7 @@ class BalanceSimulator {
             });
             mergeMaps(aggregateSources, metrics.sources);
             mergeMaps(aggregateCommands, metrics.commands);
+            mergeMaps(aggregateCombos, metrics.combos);
         }
 
         return {
@@ -357,6 +359,7 @@ class BalanceSimulator {
             summary: summarizeGames(perGame),
             sourceStats: toSortedArray(aggregateSources),
             commandStats: toSortedArray(aggregateCommands),
+            comboStats: toSortedArray(aggregateCombos),
             perGame,
         };
     }
@@ -372,6 +375,7 @@ class BalanceSimulator {
 
         const sources = new Map();
         const commands = new Map();
+        const combos = new Map();
         let money = 0;
 
         scoreEngine.on('money', ({ amount, source }) => {
@@ -454,7 +458,7 @@ class BalanceSimulator {
             const bossMoveCommands = opponent ? opponent.triggerPowers('onMove', gameCtx) : [];
             const jokerSideEffects = registry.collectSideEffects(gameCtx);
             dispatcher.execute(jokerSideEffects, { scoreEngine });
-            const opponentSteps = dispatcher.executeAndCollect(bossMoveCommands, { scoreEngine });
+            const opponentSteps = dispatcher.execute(bossMoveCommands, { scoreEngine });
 
             const scoringSteps = ScoringPipeline.build(
                 scenario.turn,
@@ -470,6 +474,12 @@ class BalanceSimulator {
             const lastSnapshot = snapshots.find(s => s.isLast);
             const finalChips = lastSnapshot?.base ?? 0;
             const finalMult  = lastSnapshot?.mult  ?? 1;
+
+            const comboKey = makeComboKey(scenario.turn);
+            const comboStat = combos.get(comboKey) ?? makeSourceStat(comboKey);
+            comboStat.triggers++;
+            comboStat.effectiveScore = (comboStat.effectiveScore ?? 0) + finalChips * finalMult;
+            combos.set(comboKey, comboStat);
 
             for (const step of scoringSteps) {
                 const label = resolveSourceLabel(step.source, jokerSlots);
@@ -534,6 +544,7 @@ class BalanceSimulator {
             money,
             sources,
             commands,
+            combos,
         };
     }
 }
@@ -609,6 +620,14 @@ function cloneStat(value) {
         kinds: { ...(value.kinds ?? {}) },
         valuesByKind: { ...(value.valuesByKind ?? {}) },
     };
+}
+
+function makeComboKey(turn) {
+    const pieceType = turn?.primaryMove?.piece?.type?.toUpperCase() ?? '?';
+    const flags = [];
+    if (turn?.captured) flags.push('capture');
+    if (turn?.isCheck)  flags.push('check');
+    return flags.length ? `${pieceType}+${flags.join('+')}` : pieceType;
 }
 
 function toSortedArray(map) {

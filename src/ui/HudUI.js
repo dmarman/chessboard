@@ -85,7 +85,7 @@
             const anims = spans.map((span, i) =>
                 span.animate(
                     [
-                        { transform: `scale(1.6) rotate(${twist}deg)` },
+                        { transform: `scale(1.8) rotate(${twist}deg)` },
                         { transform: `scale(1.3) rotate(${-twist/2}deg)` },
                         { transform: `scale(0.9) rotate(${twist/4}deg)` },
                         { transform: 'scale(1) rotate(0deg)' }

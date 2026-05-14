@@ -7,7 +7,7 @@
             this._lightColor = options.lightColor ?? THEME.squareLight;
             this._darkColor = options.darkColor ?? THEME.squareDark;
             this._transitionMs = options.transitionMs ?? 200;
-            this._shakeMs = options.shakeMs ?? 400;
+            this._shakeMs = options.shakeMs ?? 700;
             this._renderPiece = options.renderPiece ?? (() => '');
             this._orientation = options.orientation ?? 'w';
             this._dragEnabled = options.dragEnabled ?? true;
@@ -52,7 +52,7 @@
                 .chessboard-ui .chess-square.legal-move::after {
                     content: ''; position: absolute; left: 50%; top: 50%;
                     width: ${dot}px; height: ${dot}px; margin-left: -${dot/2}px; margin-top: -${dot/2}px;
-                    border-radius: 50%; background: rgba(0, 0, 0, 0.28); pointer-events: none; z-index: 5;
+                    border-radius: 50%; background: #7575757d; mix-blend-mode: difference; pointer-events: none; z-index: 5;
                 }
                 .chessboard-ui .chess-square.legal-move-capture::after {
                     content: ''; position: absolute; inset: 0;
@@ -346,24 +346,70 @@
             el.style.zIndex = '';
         }
 
-        _showScoreEffect(el, value) {
+        // kind: 'chips' | 'mult' | 'xmult' | 'money' — drives color and label format
+        _showScoreEffect(el, value, kind = 'chips') {
             if (value == null) return Promise.resolve();
             const rect = el.getBoundingClientRect();
             const boardRect = this.boardElement.getBoundingClientRect();
-            const popup = document.createElement('div');
-            popup.className = 'score-popup';
+
             const num = parseFloat(value);
-            popup.textContent = (num > 0 ? '+' : '') + (Number.isInteger(num) ? num : num.toFixed(2));
-            popup.style.color = num >= 0 ? THEME.scorePositive : THEME.scoreNegative;
+            const formatted = Number.isInteger(num) ? Math.abs(num) : Math.abs(num).toFixed(2);
+            const labelMap = {
+                chips:  `+${formatted}`,
+                mult:   `+${formatted}  Mult`,
+                xmult:  `X${formatted}  Mult`,
+                money:  `$${formatted}`,
+            };
+            const label = labelMap[kind] ?? `+${formatted}`;
+
+            const popup = document.createElement('div');
+            popup.className = `score-popup score-popup--${kind}`;
+            popup.dataset.kind = kind;
             popup.style.left = (rect.left - boardRect.left + rect.width / 2) + 'px';
-            popup.style.top  = (rect.top  - boardRect.top  + rect.height / 4) + 'px';
+            popup.style.top  = 0.95*(rect.top  - boardRect.top) + 'px';
+
+            const diamond = document.createElement('div');
+            diamond.className = 'score-popup__diamond';
+
+            const text = document.createElement('div');
+            text.className = 'score-popup__text';
+            text.innerHTML = [...label].map(ch => ch === ' ' ? '<span class="score-popup__char score-popup__char--space"> </span>' : `<span class="score-popup__char">${ch}</span>`).join('');
+
+            popup.appendChild(diamond);
+            popup.appendChild(text);
             this.boardElement.appendChild(popup);
-            return popup.animate([
-                { transform: 'translateX(-50%) translateY(-140%)', opacity: 1, letterSpacing: '-0.4em' },
-                { transform: 'translateX(-50%) translateY(-140%)', opacity: 1, letterSpacing: '0.1em'  },
-                { transform: 'translateX(-50%) translateY(-140%)', opacity: 1 },
-                { transform: 'translateX(-50%) translateY(-140%)', opacity: 0 },
-            ], { duration: this._shakeMs, easing: 'ease-out', fill: 'forwards' }).finished.then(() => popup.remove());
+
+            const dur = this._shakeMs;
+            const diamondAnim = diamond.animate([
+                { transform: 'translate(-50%, -50%) rotate(4deg)  scale(0)',    opacity: 0 },
+                { transform: 'translate(-50%, -50%) rotate(45deg) scale(1.2)',  opacity: 0.6, offset: 0.2 },
+                { transform: 'translate(-50%, -50%) rotate(40deg) scale(1)',    opacity: 0.6, offset: 0.4 },
+                { transform: 'translate(-50%, -50%) rotate(45deg) scale(1)',    opacity: 0.6, offset: 0.7 },
+                { transform: 'translate(-50%, -50%) rotate(4deg) scale(1.15)', opacity: 0 },
+            ], { duration: dur, easing: 'ease-out', fill: 'forwards' });
+
+            const upDur   = dur * 0.2;
+            const holdDur = dur * 0.5;
+            const downDur = dur * 0.01;
+            const totalDur = upDur + holdDur + downDur;
+            const upEnd    = upDur / totalDur;
+            const downStart = (upDur + holdDur) / totalDur;
+
+            [...text.querySelectorAll('.score-popup__char')].forEach((span, i) =>
+                span.animate(
+                    [
+                        { transform: 'scale(0)',   offset: 0 },
+                        { transform: 'scale(0.5)', offset: upEnd * 0.4 },
+                        { transform: 'scale(0.9)', offset: upEnd * 0.8 },
+                        { transform: 'scale(1)',   offset: upEnd },
+                        { transform: 'scale(1)',   offset: downStart },
+                        { transform: 'scale(0)',   offset: 1 },
+                    ],
+                    { duration: totalDur, delay: i * 20, easing: 'ease-out', fill: 'both' }
+                )
+            );
+
+            return diamondAnim.finished.then(() => popup.remove());
         }
 
         _animateShake(el) {
@@ -511,11 +557,12 @@
         }
 
         // Shakes piece at square and shows score popup. Returns Promise.
-        animatePieceEffect(toRow, toCol, value) {
+        // kind: 'chips' | 'mult' | 'xmult' | 'money'
+        animatePieceEffect(toRow, toCol, value, kind = 'chips') {
             const el = this.pieceElements.get(this._posKey(toRow, toCol));
             if (!el) return Promise.resolve();
             this._animateShake(el);
-            return this._showScoreEffect(el, value);
+            return this._showScoreEffect(el, value, kind);
         }
 
         // Starts idle float on piece at destination. Call after all effects are done.

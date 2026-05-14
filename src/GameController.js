@@ -258,7 +258,7 @@ class GameController {
 
         for (const type of ['P','P','P','P','p','p','p','p','p','p','p','p','r','n','b','q','k','b','n','r','R','N','B','Q','K','B','N','R']) {
             this._chessSet.addPiece(type, {
-               // enhancement: 'metal',
+                edition: 'holo',
             });
         }
     }
@@ -373,9 +373,16 @@ class GameController {
             // Score the turn in the domain layer — fires 'update'/'money' events for wallet and outcome
             const scoringSteps = ScoringPipeline.build(turn, gameCtx, this._jokerRegistry, this._chessboard.getState(), opponentSteps);
             const snapshots = this._scoreEngine.run(scoringSteps);
-            this._animationCoordinator.enqueue({ ...primaryMove, promotion: !!primaryMove.promotion, isCheckmate, isCheck, isCastle, isEnPassant: !!isEnPassant }, snapshots);
-            for (const m of moves.slice(1)) {
-                this._animationCoordinator.enqueue({ ...m, promotion: !!m.promotion, isCheckmate, isCheck, isCastle }, []);
+            // For castling, secondary moves (rook) are bundled into the primary entry so the rook
+            // slides before scoring animations begin. Non-castle secondary moves enqueue separately.
+            const secondaryMoves = isCastle
+                ? moves.slice(1).map(m => ({ ...m, promotion: !!m.promotion, isCheckmate, isCheck, isCastle }))
+                : [];
+            this._animationCoordinator.enqueue({ ...primaryMove, promotion: !!primaryMove.promotion, isCheckmate, isCheck, isCastle, isEnPassant: !!isEnPassant, secondaryMoves }, snapshots);
+            if (!isCastle) {
+                for (const m of moves.slice(1)) {
+                    this._animationCoordinator.enqueue({ ...m, promotion: !!m.promotion, isCheckmate, isCheck, isCastle }, []);
+                }
             }
             // User just moved — if CPU is now in checkmate, player won by chess
             this._outcomeResolver.notifyTurn({ isCheckmate, player }, PLAYER.USER);
