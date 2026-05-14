@@ -17,13 +17,23 @@
         }
 
         // Returns MoveIntent[] — no raw chess.js shapes leak out.
+        // Applies ENHANCEMENT_RESTRICTIONS: e.g. rock pieces cannot capture.
         moves() {
-            return this._chess.moves({ verbose: true }).map(m => MoveIntent({
-                from: m.from,
-                to: m.to,
-                san: m.san,
-                promotion: m.promotion,
-            }));
+            return this._chess.moves({ verbose: true })
+                .filter(m => {
+                    const piece = this._chessboard.getPieceAt(m.from);
+                    if (!piece) return true;
+                    const restrictions = Effects.ENHANCEMENT_RESTRICTIONS[piece.enhancement?.toLowerCase()];
+                    // m.captured is defined for both normal captures and en passant.
+                    if (restrictions?.noCapture && m.captured !== undefined) return false;
+                    return true;
+                })
+                .map(m => MoveIntent({
+                    from: m.from,
+                    to: m.to,
+                    san: m.san,
+                    promotion: m.promotion,
+                }));
         }
 
         // Accepts a MoveIntent (or intent-shaped literal). Returns snapshotted MoveEffect[].

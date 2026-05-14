@@ -454,6 +454,7 @@
             el.remove();
         }
 
+
         _animateThrow(el, dx, dy) {
             const rot = (Math.random() < 0.5 ? 1 : -1) * (270 + Math.random() * 360);
             el.style.zIndex = '999';

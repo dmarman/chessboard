@@ -45,7 +45,7 @@
 
             // Phase 6: ON_MOVE_SCORED_END — decay, expiry, counters
             steps.push(...registry.collectSteps(EventType.ON_MOVE_SCORED_END, ctx));
-console.log(steps)
+            
             return steps;
         }
 

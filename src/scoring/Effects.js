@@ -25,12 +25,17 @@
         // gold and metal are phase-specific — see ENHANCEMENT_ALIVE and ENHANCEMENT_HELD.
         // chance: optional float [0,1] — step only emits if Math.random() < chance.
         static ENHANCEMENT = {
-            //metal:    [{ kind: 'xmult', value: 1.5 }],
             glass:    [{ kind: 'xmult', value: 2   },
-                       { kind: 'expire', value: null, chance: 0.25 }], // 25% break on move
+                       { kind: 'expire', value: null, chance: 1 }], // 25% break on move
             stripes:  [{ kind: 'mult',  value: 4   }],
             checkers: [{ kind: 'xmult', value: 8  }],
             rock:     [{ kind: 'chips', value: 10  }],
+        };
+
+        // Movement restrictions per enhancement. Checked by ChessGame.moves() before exposing legal moves.
+        // noCapture: piece may not capture (move to occupied square or en passant).
+        static ENHANCEMENT_RESTRICTIONS = {
+            rock: { noCapture: true },
         };
 
         // Enhancement effects that fire only when piece does NOT move (ON_NON_MOVED_PIECE).

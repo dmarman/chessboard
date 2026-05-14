@@ -68,6 +68,9 @@
                 // ScoreEngine already ran them; subsequent animated steps carry the accumulated values.
                 if (step.animate === false) continue;
 
+                // expire steps have no scoring popup — only the ghost break animation after the loop.
+                if (step.kind === 'expire') continue;
+
                 // Route by source type:
                 //   joker/edition retrigger → joker card UI
                 //   joker/edition scoring → joker card UI

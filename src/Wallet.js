@@ -1,6 +1,6 @@
 class Wallet {
     constructor() {
-        this._balance = 10;
+        this._balance = 0;
     }
 
     get balance() {

@@ -240,6 +240,10 @@ class GameController {
             this._transitionTo('game-over');
             return;
         }
+        const gameEndCtx = { playerColor: GameController.PLAYER_COLOR };
+        const gameEndSteps = ScoringPipeline.buildGameEnd(this._chessboard.getState(), gameEndCtx, this._jokerRegistry);
+        this._scoreEngine.run(gameEndSteps);
+
         this._wallet.add(reward);
         this._hudUI.setMoney(this._wallet.balance);
         console.log(`[GAME RESULT] Win by ${reason}. Tournament: ${tournament}, Opponent: ${opponent}, Score: ${score}. Reward: $${reward}. Money: $${this._wallet.balance}`);
@@ -250,15 +254,22 @@ class GameController {
     }
 
     _initChessSet() { // this function is alive for testing stuff, will be fixed in the future
-        for (const type of ['P', 'P','P','P']) {
+        for (const type of ['N', 'N', 'N', 'N', 'N', 'N']) {
             this._chessSet.addPiece(type, {
-                //enhancement: 'metal',
+                enhancement: 'gold',
             });
         }
 
-        for (const type of ['P','P','P','P','p','p','p','p','p','p','p','p','r','n','b','q','k','b','n','r','R','N','B','Q','K','B','N','R']) {
+        for (const type of ['P','P','P','P','P','P','P','P']) {
             this._chessSet.addPiece(type, {
-                edition: 'holo',
+                enhancement: 'stripes',
+            });
+        }
+
+        for (const type of ['P','P','P','P','P','P','P','P','p','p','p','p','p','p','p','p','r','n','b','q','k','b','n','r','R','N','B','Q','K','B','N','R']) {
+            this._chessSet.addPiece(type, {
+                //edition: 'holo',
+                //enhancement: 'glass',
             });
         }
     }
