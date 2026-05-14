@@ -368,12 +368,12 @@
 
         _animateShake(el) {
             return el.animate([
-                { transform: 'scale(1)    rotate(0)',     filter: 'drop-shadow(4px 4px 0.5px rgba(0,0,0,0.2))' },
-                { transform: 'scale(1.8)  rotate(10deg)', filter: 'drop-shadow(4px 8px 0.5px rgba(0,0,0,0.2))', offset: 0.2 },
+                { transform: 'scale(1)    rotate(0)',     filter: 'drop-shadow(4px 4px 3px rgba(0,0,0,0.6))' },
+                { transform: 'scale(1.8)  rotate(10deg)', filter: 'drop-shadow(4px 8px 3px rgba(0,0,0,0.6))', offset: 0.2 },
                 { transform: 'scale(0.7)  rotate(-5deg)', offset: 0.4 },
-                { transform: 'scale(1.2)  rotate(2deg)',  filter: 'drop-shadow(4px 8px 0.5px rgba(0,0,0,0.2))',  offset: 0.6 },
+                { transform: 'scale(1.2)  rotate(2deg)',  filter: 'drop-shadow(4px 8px 3px rgba(0,0,0,0.6))',  offset: 0.6 },
                 { transform: 'scale(0.9)  rotate(-1deg)', offset: 0.8 },
-                { transform: 'scale(1)    rotate(0)',     filter: 'drop-shadow(4px 4px 0.5px rgba(0,0,0,0.2))' },
+                { transform: 'scale(1)    rotate(0)',     filter: 'drop-shadow(4px 4px 3px rgba(0,0,0,0.6))' },
             ], { duration: this._shakeMs, easing: 'ease-out' }).finished;
         }
 
@@ -504,6 +504,10 @@
             this.pieceElements.set(this._posKey(toRow, toCol), el);
             this._setSquareHasPiece(fromRow, fromCol, false);
             this._setSquareHasPiece(toRow, toCol, true);
+            // Start float immediately so it runs under each shake during the scoring phase.
+            // Shake (added later) overrides float's transform/filter while active; when shake
+            // ends with no fill:forwards, float resumes. endMove restarts float with a fresh phase.
+            this._animateFloat(el);
         }
 
         // Shakes piece at square and shows score popup. Returns Promise.
@@ -517,6 +521,6 @@
         // Starts idle float on piece at destination. Call after all effects are done.
         endMove(toRow, toCol) {
             const el = this.pieceElements.get(this._posKey(toRow, toCol));
-            if (el) this._animateFloat(el);
+            if (el && el._floatAnimation?.playState !== 'running') this._animateFloat(el);
         }
     }

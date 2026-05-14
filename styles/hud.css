@@ -112,10 +112,18 @@
 }
 
 #hud .hud-sub-value.gained {
-    font-size: 54px;
+    font-size: 32px;
     color: #ffffff;
     height: 42px;
     padding-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#hud .hud-sub-value.gained.scoring {
+    padding-top: 8px;
+    font-size: 54px;
 }
 
 #hud .hud-digit {
