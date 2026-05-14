@@ -95,6 +95,18 @@
                 this.emit('squareClick', { square, row, col });
             });
 
+            // Hover events — emits squareHover with the square under the pointer,
+            // or null when pointer leaves the board. Used by InputController for
+            // legal-move scoring preview.
+            squaresLayer.addEventListener('mouseover', (event) => {
+                const sq = event.target.closest('.chess-square');
+                if (!sq || !this.boardElement.contains(sq)) return;
+                this.emit('squareHover', { square: sq.dataset.square });
+            });
+            squaresLayer.addEventListener('mouseleave', () => {
+                this.emit('squareHover', { square: null });
+            });
+
             this.piecesLayer = document.createElement('div');
             this.piecesLayer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none';
             this.boardElement.appendChild(this.piecesLayer);
@@ -210,6 +222,23 @@
             el.querySelectorAll('[data-sync-delay]').forEach(child => {
                 child.style.animationDelay = `${delay}ms`;
             });
+        }
+
+        // Removes piece DOM at (row, col) with break animation. No-op if no piece there.
+        async removePieceAt(row, col) {
+            const key = this._posKey(row, col);
+            const el = this.pieceElements.get(key);
+            if (!el) return;
+            this.pieceElements.delete(key);
+            el._floatAnimation?.cancel();
+            el._floatAnimation = null;
+            el.style.zIndex = '999';
+            await el.animate([
+                { transform: 'scale(1)    rotate(0deg)',   opacity: 1, filter: 'brightness(1)' },
+                { transform: 'scale(1.3)  rotate(0deg)',   opacity: 1, filter: 'brightness(2.5)', offset: 0.25 },
+                { transform: 'scale(0.0)  rotate(180deg)', opacity: 0, filter: 'brightness(2.5)' },
+            ], { duration: this._shakeMs, easing: 'ease-out', fill: 'forwards' }).finished;
+            el.remove();
         }
 
         _animateThrow(el, dx, dy) {

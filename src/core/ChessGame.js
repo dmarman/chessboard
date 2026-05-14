@@ -12,36 +12,34 @@
 
         reset() {
             this._chess.reset();
+            this._chessboard.setPiecesFromFen(this._chess.fen(), []);
         }
 
-        // Returns domain move descriptors {from, to, san, promotion} — no raw chess.js shapes.
+        // Returns MoveIntent[] — no raw chess.js shapes leak out.
         moves() {
-            return this._chess.moves({ verbose: true }).map(m => ({
+            return this._chess.moves({ verbose: true }).map(m => MoveIntent({
                 from: m.from,
                 to: m.to,
                 san: m.san,
-                promotion: m.promotion || null,
+                promotion: m.promotion,
             }));
         }
 
-        // Returns snapshotted move descriptors or null. Never leaks live Piece refs.
-        move(move, player = null) {
-            const chessMove = this._chess.move(move); // Parse stockfish move to chess.js move
-            if (!chessMove) return null;
+        // Accepts a MoveIntent (or intent-shaped literal). Returns snapshotted MoveEffect[].
+        // Throws if move illegal (chess.js raises on invalid input).
+        move(intent, player = null) {
+            const chessMove = this._chess.move(intent); // chess.js accepts {from,to,promotion}
 
-            const physicalMoves = this._chessboard.move({
-                from: chessMove.from,
-                to: chessMove.to,
-                enPassant: chessMove.isEnPassant(),
-                promotion: chessMove.promotion,
-                isKingsideCastle: chessMove.isKingsideCastle(),
-                isQueensideCastle: chessMove.isQueensideCastle(),
-                player,
-            }).map(m => Object.freeze({
-                ...m,
-                piece: m.piece?.toSnapshot() ?? null,
-                captured: m.captured?.toSnapshot() ?? null,
-            }));
+            // Freeze chess.js booleans before chessMove ref escapes the adapter boundary.
+            const isEnPassant = chessMove.isEnPassant();
+            const isKingsideCastle = chessMove.isKingsideCastle();
+            const isQueensideCastle = chessMove.isQueensideCastle();
+
+            const liveEffects = this._chessboard.move(
+                MoveIntent({ from: chessMove.from, to: chessMove.to, promotion: chessMove.promotion }),
+                { enPassant: isEnPassant, isKingsideCastle, isQueensideCastle, player },
+            );
+            const physicalMoves = liveEffects.map(snapshotMoveEffect);
 
             // Emit one logical turn event per chess move, regardless of how many
             // pieces moved physically (e.g. castling = 2 physical, 1 turn).
@@ -50,10 +48,10 @@
                 moves: physicalMoves,
                 primaryMove: physicalMoves[0],
                 captured: physicalMoves[0].captured,
-                isCastle: chessMove.isKingsideCastle() || chessMove.isQueensideCastle(),
-                isKingsideCastle: chessMove.isKingsideCastle(),
-                isQueensideCastle: chessMove.isQueensideCastle(),
-                isEnPassant: chessMove.isEnPassant(),
+                isCastle: isKingsideCastle || isQueensideCastle,
+                isKingsideCastle,
+                isQueensideCastle,
+                isEnPassant,
                 isCheck: this._chess.isCheck(),
                 isCheckmate: this._chess.isCheckmate(),
                 promotion: chessMove.promotion || null,
@@ -80,6 +78,16 @@
 
         getPieceAt(square) {
             return this._chessboard.getPieceAt(square)?.toSnapshot() ?? null;
+        }
+
+        // Removes a piece by id from the domain chessboard and chess.js engine.
+        // Returns { piece, row, col, square } or null. Keeps chess.js legality in sync.
+        removePieceById(id) {
+            const result = this._chessboard.removePieceById(id);
+            if (!result) return null;
+            const square = toChessSquare(result.row, result.col);
+            this._chess.remove(square);
+            return { ...result, square };
         }
 
     }

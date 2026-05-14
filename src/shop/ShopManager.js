@@ -67,6 +67,11 @@
             return this.roll();
         }
 
+        // Price of a slot without mutating state.
+        peekPrice(jokerId) {
+            return JOKER_DEFS[jokerId]?.price ?? 0;
+        }
+
         // Permanently remove joker from pool (bought — gone for rest of run).
         // Returns the def object.
         buy(jokerId) {

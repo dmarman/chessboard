@@ -31,22 +31,17 @@
 
         // Generate piece previews for a pack using category content weights.
         // Returns null if the category is not yet implemented.
-        // Each piece: { type, enhancement, edition, style, modifiers[] }
-        // modifiers is the flat union of enhancement.modifiers + edition.modifiers.
+        // Each piece: { type, enhancement, edition }
         generateContent(packDef) {
             const weights = PACK_CONTENT_WEIGHTS[packDef.category];
             if (!weights) return null;
 
             const pieces = [];
             for (let i = 0; i < packDef.numPieces; i++) {
-                const enh = BoosterPackManager._weightedPickItem(weights.enhancements);
-                const edt = BoosterPackManager._weightedPickItem(weights.editions);
                 pieces.push({
                     type:        BoosterPackManager._weightedPick(weights.pieceTypes),
-                    enhancement: enh.value,
-                    edition:     edt.value,
-                    style:       enh.style,
-                    modifiers:   [...enh.modifiers, ...edt.modifiers],
+                    enhancement: BoosterPackManager._weightedPick(weights.enhancements),
+                    edition:     BoosterPackManager._weightedPick(weights.editions),
                 });
             }
             return pieces;
@@ -54,6 +49,7 @@
 
         // Weighted random pick — returns item.value.
         static _weightedPick(items) {
+            if (!items || items.length === 0) throw new Error('_weightedPick: empty items');
             const total = items.reduce((sum, item) => sum + item.weight, 0);
             let r = Math.random() * total;
             for (const item of items) {
@@ -65,6 +61,7 @@
 
         // Weighted random pick — returns the full item object.
         static _weightedPickItem(items) {
+            if (!items || items.length === 0) throw new Error('_weightedPickItem: empty items');
             const total = items.reduce((sum, item) => sum + item.weight, 0);
             let r = Math.random() * total;
             for (const item of items) {

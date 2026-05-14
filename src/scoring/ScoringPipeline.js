@@ -20,51 +20,32 @@
             const steps = [];
 
             // Phase 1: ON_MOVE_PLAYED — move type effects fire first (hand-type scoring), then joker reactions
-            const moveTypeSteps = ScoringPipeline._moveTypeSteps(turn);
-             console.log('[ScoringPipeline] Phase 1a - Move Type:', moveTypeSteps.map(s => `${s.kind}(${s.value})`));
-            steps.push(...moveTypeSteps);
-            const phase1JokerSteps = registry.collectSteps(EventType.ON_MOVE_PLAYED, ctx);
-             console.log('[ScoringPipeline] Phase 1 - ON_MOVE_PLAYED jokers:', phase1JokerSteps.map(s => `${s.source?.label}:${s.kind}(${s.value})`));
-            steps.push(...phase1JokerSteps);
+            steps.push(...ScoringPipeline._moveTypeSteps(turn));
+            steps.push(...registry.collectSteps(EventType.ON_MOVE_PLAYED, ctx));
 
             // Phase 1b: opponent onMove reactions — after move is established, before piece scoring
-             console.log('[ScoringPipeline] Phase 1b - Opponent reactions:', opponentSteps.length);
             steps.push(...opponentSteps);
 
             // Phase 2+3: ON_PIECE_SCORED + ON_PIECE_SCORED_END (with retrigger expansion)
             const move = turn.primaryMove;
             if (move?.piece) {
                 const baseSteps = ScoringPipeline._pieceAndJokerSteps(move, ctx, registry);
-                console.log('[ScoringPipeline] Phase 2 - Piece & Jokers (base):', baseSteps.map(s => `${s.source?.label}:${s.kind}(${s.value})`));
-                const expanded = ScoringPipeline._expandRetriggers(baseSteps, move, ctx, registry);
-                 console.log('[ScoringPipeline] Phase 2 - After retrigger expansion:', expanded.length, 'total steps');
-                steps.push(...expanded);
-                const phase3Steps = registry.collectSteps(EventType.ON_PIECE_SCORED_END, ctx);
-                 console.log('[ScoringPipeline] Phase 3 - ON_PIECE_SCORED_END:', phase3Steps.map(s => `${s.source?.label}:${s.kind}(${s.value})`));
-                steps.push(...phase3Steps);
+                steps.push(...ScoringPipeline._expandRetriggers(baseSteps, move, ctx, registry));
+                steps.push(...registry.collectSteps(EventType.ON_PIECE_SCORED_END, ctx));
             }
 
             // Phase 4: ON_NON_MOVED_PIECE (held-card equivalent)
             if (boardState) {
-                const heldSteps = ScoringPipeline._nonMovedPieceSteps(move, boardState, ctx, registry);
-                 console.log('[ScoringPipeline] Phase 4 - ON_NON_MOVED_PIECE (held pieces):', heldSteps.length);
-                steps.push(...heldSteps);
+                steps.push(...ScoringPipeline._nonMovedPieceSteps(move, boardState, ctx, registry));
             }
 
             // Phase 5: INDEPENDENT — passive joker effects + joker edition modifiers
-            const independentSteps = registry.collectSteps(EventType.INDEPENDENT, ctx);
-            // console.log('[ScoringPipeline] Phase 5a - INDEPENDENT jokers:', independentSteps.map(s => `${s.source?.label}:${s.kind}(${s.value})`));
-            steps.push(...independentSteps);
-            const editionSteps = ScoringPipeline._jokerEditionSteps(registry);
-            // console.log('[ScoringPipeline] Phase 5b - Edition modifiers:', editionSteps.map(s => `${s.source?.label}:${s.kind}(${s.value})`));
-            steps.push(...editionSteps);
+            steps.push(...registry.collectSteps(EventType.INDEPENDENT, ctx));
+            steps.push(...ScoringPipeline._jokerEditionSteps(registry));
 
             // Phase 6: ON_MOVE_SCORED_END — decay, expiry, counters
-            const finalSteps = registry.collectSteps(EventType.ON_MOVE_SCORED_END, ctx);
-            // console.log('[ScoringPipeline] Phase 6 - ON_MOVE_SCORED_END:', finalSteps.map(s => `${s.source?.label}:${s.kind}(${s.value})`));
-            steps.push(...finalSteps);
+            steps.push(...registry.collectSteps(EventType.ON_MOVE_SCORED_END, ctx));
 
-            console.log('[ScoringPipeline] TOTAL STEPS:', steps.length, steps);
             return steps;
         }
 
@@ -88,16 +69,6 @@
             return [...pieceSteps, ...jokerSteps];
         }
 
-        // Returns ON_PIECE_SCORED steps excluding specified jokers (used in retrigger expansion).
-        static _pieceAndJokerStepsExcluding(move, ctx, registry, excludeJokerIds) {
-            const pieceSteps = Effects.stepsFromPiece(move.piece);
-            const allJokerSteps = registry.collectSteps(EventType.ON_PIECE_SCORED, ctx);
-            const filteredJokerSteps = allJokerSteps.filter(
-                step => !excludeJokerIds.has(step.source?.id)
-            );
-            return [...pieceSteps, ...filteredJokerSteps];
-        }
-
         // Returns ON_PIECE_SCORED steps, including only jokers that appeared before retrigger.
         static _pieceAndJokerStepsOnlyBefore(move, ctx, registry, jokerIdsBefore) {
             const pieceSteps = Effects.stepsFromPiece(move.piece);
@@ -115,7 +86,6 @@
         static _expandRetriggers(steps, move, ctx, registry) {
             const result = [];
             let retriggerCount = 0;
-            const retriggeredJokerIds = new Set();
             const jokersSoFar = new Set();
 
             for (const step of steps) {
@@ -131,10 +101,6 @@
                 result.push(step);
                 if (retriggerCount >= MAX_RETRIGGERS) continue;
                 retriggerCount++;
-                // Track the joker that caused this retrigger to prevent self-retriggering
-                if (step.source?.id) {
-                    retriggeredJokerIds.add(step.source.id);
-                }
                 // Only retrigger effects from jokers that appeared BEFORE this retrigger
                 result.push(...ScoringPipeline._pieceAndJokerStepsOnlyBefore(move, ctx, registry, jokersSoFar));
             }
@@ -143,45 +109,73 @@
         }
 
         // Generates ON_NON_MOVED_PIECE steps for each friendly piece not involved in this turn.
+        // Fires piece base (PIECE_HELD) + enhancement + edition effects, then joker reactions.
         static _nonMovedPieceSteps(primaryMove, boardState, ctx, registry) {
             const steps = [];
             const movingPieceId = primaryMove?.piece?.id;
             const playerColor = ctx.playerColor;
 
-            for (const row of boardState) {
-                for (const piece of row) {
+            for (let r = 0; r < boardState.length; r++) {
+                const row = boardState[r];
+                for (let c = 0; c < row.length; c++) {
+                    const piece = row[c];
                     if (!piece) continue;
                     if (piece.color !== playerColor) continue;
                     if (piece.id === movingPieceId) continue;
+                    steps.push(...Effects.stepsFromNonMovedPiece(piece, { row: r, col: c }));
                     // Extend ctx locally — heldPiece is only meaningful in this phase
-                    const heldCtx = {
+                    const heldCtx = Object.freeze({
                         ...ctx,
                         heldPiece: piece,
-                    };
+                    });
                     steps.push(...registry.collectSteps(EventType.ON_NON_MOVED_PIECE, heldCtx));
                 }
             }
             return steps;
         }
 
-        // Generates INDEPENDENT-phase ScoringSteps from each joker's edition modifiers (holo/poly/metal).
+        /**
+         * Builds a ScoringStep[] for end-of-game scoring (separate from the per-move pipeline).
+         * Fires ON_GAME_END for every alive friendly piece (base money + enhancement + edition),
+         * then joker reactions to ON_GAME_END.
+         *
+         * @param {Piece[][]|null} boardState — 8×8 board of alive pieces
+         * @param {object} ctx               — frozen PowerContext
+         * @param {JokerRegistry} registry
+         * @returns {ScoringStep[]}
+         */
+        static buildGameEnd(boardState, ctx, registry) {
+            const steps = [];
+            const playerColor = ctx.playerColor;
+
+            for (const row of boardState) {
+                for (const piece of row) {
+                    if (!piece) continue;
+                    if (piece.color !== playerColor) continue;
+                    steps.push(...Effects.stepsFromAliveAtGameEnd(piece));
+                }
+            }
+
+            steps.push(...registry.collectSteps(EventType.ON_GAME_END, ctx));
+            return steps;
+        }
+
+        // Generates INDEPENDENT-phase ScoringSteps from each joker's edition (holo/poly/shine/neon).
         // These are first-class scoring sources separate from the joker's trigger() logic.
         static _jokerEditionSteps(registry) {
             const steps = [];
             for (const joker of registry.getActive()) {
-                for (const mod of joker.modifiers) {
-                    const effects = Effects.MODIFIER[mod.toLowerCase()];
-                    if (!effects?.length) continue;
-                    const e = effects[0];
-                    steps.push(makeScoringStep({
-                        event: EventType.INDEPENDENT,
-                        kind: e.destination === 'mult'
-                            ? (e.operation === 'mult' ? 'xmult' : 'mult')
-                            : 'chips',
-                        value: e.value,
-                        source: { type: 'edition', id: joker.instanceId, label: `${joker.name} (${mod})` },
-                    }));
-                }
+                const edition = joker.edition?.toLowerCase();
+                if (!edition || edition === 'base') continue;
+                const effects = Effects.EDITION[edition];
+                if (!effects?.length) continue;
+                const e = effects[0];
+                steps.push(makeScoringStep({
+                    event: EventType.INDEPENDENT,
+                    kind: e.kind,
+                    value: e.value,
+                    source: { type: 'edition', id: joker.instanceId, label: `${joker.name} (${edition})` },
+                }));
             }
             return steps;
         }

@@ -14,6 +14,12 @@ The important thing is everything is in its own class and we keep concerns decou
 
 Do not delete comments in the code
 
+Error handling strategy — one per layer:
+- Domain core (Chessboard, ChessGame, Piece, JokerRegistry): throw on invariant violation or programmer error (missing piece, unknown id, illegal move bubbled from chess.js). No null/false returns to signal bugs.
+- Orchestration (CommandDispatcher, pipelines, GameController): throw on unknown handler / unregistered type. No warn + continue — silent skips hide wiring bugs.
+- Expected-empty results (getPieceAt on empty square, remove of missing id): return null / no-op. Reserve null returns for genuinely valid "nothing here" outcomes, never for failures.
+- Boundary parsers (setPiecesFromFen and similar best-effort loaders): may warn + continue when partial state is acceptable. Document the leniency at the call site.
+
 Balatro to our chess terms translation:
 Hand -> Move: we score per chess move.
 Card -> Piece: we have pieces, not cards.
@@ -23,3 +29,5 @@ Antes -> Tournaments?: to be defined. Our run contains tournaments.
 Run -> chess carreer?: to be defined.
 
 here you have the Balatro basecode if you have questions: /Users/domingo/Downloads/balatro-gba-main
+
+Ignore html buttons and behavior, their are only for testing.

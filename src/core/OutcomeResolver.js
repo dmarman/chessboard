@@ -25,11 +25,17 @@ class OutcomeResolver {
         if (this._tournamentManager.checkBeat(total)) this._trigger('score');
     }
 
-    // Returns pending win data and clears it, or null if no win pending.
+    // Call when a non-move mutation (e.g. glass-enhancement break) leaves the player in check.
+    // The position is unrecoverable — user loses.
+    notifyIllegal() {
+        this._trigger('illegal');
+    }
+
+    // Returns pending outcome data and clears it, or null if no outcome pending.
     consume() {
-        const win = this._pending;
+        const outcome = this._pending;
         this._pending = null;
-        return win;
+        return outcome;
     }
 
     _trigger(reason) {

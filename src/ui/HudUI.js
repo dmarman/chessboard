@@ -8,7 +8,7 @@
             this._chain = Promise.resolve();
         }
 
-        get opponentSlot() { return this._opponentSlot; }
+        get opponentUI() { return this._opponentUI; }
 
         _buildDOM() {
             this._el.innerHTML = `
@@ -51,6 +51,7 @@
                 </div>
             `;
             this._opponentSlot = this._el.querySelector('.hud-opponent-slot');
+            this._opponentUI = new OpponentUI(this._opponentSlot);
             this._scoreVal  = this._el.querySelector('.total-score .hud-value');
             this._chipsVal  = this._el.querySelector('.hud-sub-value.chips');
             this._multVal   = this._el.querySelector('.hud-sub-value.mult');
@@ -158,10 +159,38 @@
             return this._enqueue(() => this._setAndPulse(this._gainedVal, labels.join(' + ')));
         }
 
+        // Non-animated, non-queued write of chips/mult slots for selection/hover preview.
+        // Caller computes deterministic preview via Effects.preview() and passes the
+        // reduced { chips, mult } here. Optional `labels` writes the move-type tags
+        // (e.g. "Capture + Check") to the gained slot. clearPreview() resets to the
+        // idle display. Matches the hud-digit span format used by _setAndPulse so
+        // idle float keeps working.
+        preview({ chips, mult, labels = [] }) {
+            const fmt = v => Number.isInteger(v) ? `${v}` : v.toFixed(2);
+            this._writeDigits(this._chipsVal, fmt(chips));
+            this._writeDigits(this._multVal,  fmt(mult));
+            this._gainedVal.textContent = labels.length ? labels.join(' + ') : '';
+        }
+
+        clearPreview() {
+            this._writeDigits(this._chipsVal, '0');
+            this._writeDigits(this._multVal,  '0');
+            this._gainedVal.textContent = '';
+        }
+
+        _writeDigits(el, text) {
+            if (el.textContent === text) return;
+            el.innerHTML = [...text].map(ch => `<span class="hud-digit">${ch}</span>`).join('');
+            el.querySelectorAll('.hud-digit').forEach((span, i) => this._startFloat(span, i * 1000));
+        }
+
         updatePartial({ base, mult }) {
+            // Skip the chips write while base is 0 — otherwise a preview-set value
+            // (e.g. piece chips shown on click) flickers to 0 when an early mult-only
+            // step (capture, check) fires before the piece-chips step in the pipeline.
             return this._enqueue(() => this._runSteps([
                 [
-                    () => this._setAndPulse(this._chipsVal, base > 0 ? `${base}` : '0'),
+                    () => base > 0 ? this._setAndPulse(this._chipsVal, `${base}`) : Promise.resolve(),
                     () => this._setAndPulse(this._multVal, `${mult}`, { twist: 30, duration: 300 }),
                 ],
             ]));

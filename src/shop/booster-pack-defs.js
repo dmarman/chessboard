@@ -209,10 +209,8 @@
     // null = category not yet implemented.
     // https://balatrowiki.org/w/Card_Modifiers
     //
-    // Each piece is built from two independent rolls:
-    //   enhancement → contributes modifiers[] + style
-    //   edition     → contributes modifiers[]
-    // Final piece: { type, enhancement, edition, style, modifiers: [...enh.modifiers, ...edt.modifiers] }
+    // Each piece rolls one enhancement + one edition.
+    // Final piece: { type, enhancement, edition }
     const PACK_CONTENT_WEIGHTS = {
         standard: {
             pieceTypes: [
@@ -223,23 +221,24 @@
                 { value: 'Q', weight: 2 },
                 { value: 'K', weight: 1 },
             ],
-            // Enhancements: gameplay-flavored piece properties.
-            // Each entry: { value: name, weight, modifiers: [], style }
+            // Enhancements: gameplay property + visual. Single value per piece.
+            // checkers + rock swap the sprite family; the others overlay onto standard sprites.
             enhancements: [
-                { value: 'none',    weight: 60, modifiers: [],           style: 'standard' },
-                { value: 'glass',   weight: 8,  modifiers: ['glass'],    style: 'standard' },
-                { value: 'steel',   weight: 8,  modifiers: ['metal'],    style: 'standard' },
-                { value: 'gold',    weight: 8,  modifiers: ['gold'],     style: 'standard' },
-                { value: 'stone',   weight: 8,  modifiers: [],           style: 'rock'     },
-                { value: 'stripes', weight: 8,  modifiers: ['stripes'],  style: 'standard' },
+                { value: 'none',     weight: 56 },
+                { value: 'glass',    weight: 8  },
+                { value: 'metal',    weight: 8  },
+                { value: 'gold',     weight: 8  },
+                { value: 'rock',     weight: 6  },
+                { value: 'stripes',  weight: 8  },
+                { value: 'checkers', weight: 6  },
             ],
-            // Editions: visual overlays applied on top of the enhancement.
-            // Each entry: { value: name, weight, modifiers: [] }
+            // Editions: visual overlay applied on top of the enhancement. Single value per piece.
             editions: [
-                { value: 'base',         weight: 82, modifiers: []        },
-                { value: 'polished',     weight: 4,  modifiers: ['shine'] },
-                { value: 'holographic',  weight: 3,  modifiers: ['holo']  },
-                { value: 'polychrome',   weight: 1,  modifiers: ['poly']},
+                { value: 'base',  weight: 82 },
+                { value: 'shine', weight: 4  },
+                { value: 'holo',  weight: 3  },
+                { value: 'poly',  weight: 1  },
+                { value: 'neon',  weight: 1  },
             ],
         },
         arcana:    null,

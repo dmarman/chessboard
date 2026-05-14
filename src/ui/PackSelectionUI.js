@@ -1,7 +1,7 @@
     // Pack selection modal. Shown after buying a booster pack.
-    // Emits: 'pieces-selected' ([{type, modifier, style}, ...])
+    // Emits: 'pieces-selected' ([{type, enhancement, edition}, ...])
     class PackSelectionUI extends EventEmitter {
-        constructor() {
+        constructor(pngTheme) {
             super();
             this._overlay = document.createElement('div');
             this._overlay.className = 'pack-selection-overlay';
@@ -23,7 +23,7 @@
             this._piecesEl   = this._overlay.querySelector('.pack-selection-pieces');
             this._confirmBtn = this._overlay.querySelector('.pack-selection-confirm');
 
-            this._theme = new PngPieceTheme();
+            this._theme = pngTheme;
             this._packDef = null;
             this._content = [];
             this._selected = new Set();
@@ -51,6 +51,10 @@
             this._overlay.classList.add('pack-selection-overlay--visible');
         }
 
+        get isOpen() {
+            return this._overlay.classList.contains('pack-selection-overlay--visible');
+        }
+
         hide() {
             this._overlay.classList.remove('pack-selection-overlay--visible');
         }
@@ -61,10 +65,10 @@
 
             // Pseudo-piece object compatible with PngPieceTheme.render()
             const pseudoPiece = {
-                type:      pieceData.type.toUpperCase(),
-                style:     pieceData.style || 'standard',
-                modifiers: pieceData.modifiers ?? [],
-                color:     () => 'w',
+                type:        pieceData.type.toUpperCase(),
+                enhancement: pieceData.enhancement ?? 'none',
+                edition:     pieceData.edition ?? 'base',
+                color:       () => 'w',
             };
 
             const typeName   = PIECE_NAMES[pieceData.type.toUpperCase()] || pieceData.type;

@@ -73,7 +73,12 @@
                 } else if ((step.source.type === 'joker' || step.source.type === 'edition') && this._jokerUI) {
                     fxAnim = this._jokerUI.animateEffect(step.source.id, step.value);
                 } else {
-                    fxAnim = this._boardUI.animatePieceEffect(move.toRow, move.toCol, step.value);
+                    // Held-piece effects (ON_NON_MOVED_PIECE) carry their own square in source.
+                    // Default to the moved piece's destination otherwise.
+                    const hasSquare = step.source.row != null && step.source.col != null;
+                    const row = hasSquare ? step.source.row : move.toRow;
+                    const col = hasSquare ? step.source.col : move.toCol;
+                    fxAnim = this._boardUI.animatePieceEffect(row, col, step.value);
                 }
 
                 if (step.kind === 'chips') this._soundManager?.play('chips_card');
@@ -85,6 +90,13 @@
                     ? this._hudUI.update(snap)
                     : this._hudUI.updatePartial(snap);
                 await Promise.all([fxAnim, hudAnim]);
+                if (this._gen !== gen) return;
+            }
+
+            // After scoring popups, animate any piece-expire (e.g. glass break) at destination.
+            const expired = snapshots.some(s => s.step.kind === 'expire' && s.step.source?.type === 'piece');
+            if (expired) {
+                await this._boardUI.removePieceAt(move.toRow, move.toCol);
                 if (this._gen !== gen) return;
             }
 

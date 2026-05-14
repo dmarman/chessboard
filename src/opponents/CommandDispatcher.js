@@ -11,27 +11,13 @@
             return this;
         }
 
-        // Execute an array of command objects for immediate side effects only. Return value ignored.
+        // Execute commands, collect any pipelineSteps handlers return. Caller ignores when empty.
+        // Throws on unknown command type — missing handler is a programmer error, not runtime.
         execute(commands, engines) {
-            for (const cmd of commands) {
-                const handler = this._handlers.get(cmd.type);
-                if (!handler) {
-                    console.warn(`[CommandDispatcher] No handler for command type: "${cmd.type}"`);
-                    continue;
-                }
-                handler(cmd, engines);
-            }
-        }
-
-        // Execute commands and collect any pipelineSteps handlers return for scoring injection.
-        executeAndCollect(commands, engines) {
             const pipelineSteps = [];
             for (const cmd of commands) {
                 const handler = this._handlers.get(cmd.type);
-                if (!handler) {
-                    console.warn(`[CommandDispatcher] No handler for command type: "${cmd.type}"`);
-                    continue;
-                }
+                if (!handler) throw new Error(`CommandDispatcher: no handler registered for command type "${cmd.type}"`);
                 const result = handler(cmd, engines);
                 if (result?.pipelineSteps?.length) pipelineSteps.push(...result.pipelineSteps);
             }

@@ -18,5 +18,5 @@ const PIECE_NAMES = {
     'K': 'King'
 };
 
-const ALL_MODIFIERS = ['holo', 'poly', 'metal', 'shine', 'neon', 'glass', 'gold', 'stripes'];
-const ALL_STYLES = ['standard', 'checkers', 'rock'];
+const ALL_ENHANCEMENTS = ['none', 'metal', 'glass', 'gold', 'stripes', 'checkers', 'rock'];
+const ALL_EDITIONS     = ['base', 'holo', 'poly', 'shine', 'neon'];

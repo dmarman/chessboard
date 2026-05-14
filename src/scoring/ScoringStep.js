@@ -12,7 +12,7 @@
     // source.type:
     //   'piece'   → the moving piece itself
     //   'joker'   → an active joker instance
-    //   'edition' → a joker's edition modifier (holo/poly/metal) — INDEPENDENT phase only
+    //   'edition' → a joker's edition (holo/poly/shine/neon) — INDEPENDENT phase only
 
     const EventType = Object.freeze({
         ON_MOVE_PLAYED:      'ON_MOVE_PLAYED',
@@ -21,9 +21,11 @@
         ON_NON_MOVED_PIECE:  'ON_NON_MOVED_PIECE',
         INDEPENDENT:         'INDEPENDENT',
         ON_MOVE_SCORED_END:  'ON_MOVE_SCORED_END',
+        ON_GAME_END:         'ON_GAME_END',
     });
 
-    // Ordered pipeline sequence used by ScoringPipeline.build()
+    // Ordered pipeline sequence used by ScoringPipeline.build() (per-move pipeline only).
+    // ON_GAME_END is handled by ScoringPipeline.buildGameEnd() — separate from move scoring.
     const EVENT_ORDER = [
         EventType.ON_MOVE_PLAYED,
         EventType.ON_PIECE_SCORED,

@@ -35,6 +35,11 @@
             return this._active.flatMap(j => j.evaluateSideEffects(ctx));
         }
 
+        // Reset all active joker states — call on resetChessboard so counters don't bleed between games.
+        resetStates() {
+            this._active.forEach(j => j.resetState());
+        }
+
         // Moves a joker to a new position in play order. Affects the sequence joker steps are collected.
         reorder(instanceId, newIndex) {
             const idx = this._active.findIndex(j => j.instanceId === instanceId);

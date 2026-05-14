@@ -133,7 +133,7 @@
         }
     }
 
-    // Overlay classes shared with piece modifier system — rendered as masked divs with --sprite set to pack_base.png
+    // Overlay classes shared with piece enhancement/edition system — rendered as masked divs with --sprite set to pack_base.png
     ShopUI.PACK_OVERLAY_CLASSES = new Set([
         'holo-overlay', 'poly-overlay', 'metal-overlay', 'shine-overlay',
         'neon-tint', 'glass-overlay', 'gold-overlay', 'stripes-overlay',

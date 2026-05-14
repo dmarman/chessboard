@@ -60,34 +60,29 @@ class GameController {
                     .filter(e => e.value != null)
                     .map(e => makeScoringStep({
                         event: EventType.ON_MOVE_PLAYED,
-                        kind: e.destination === 'mult'
-                            ? (e.operation === 'mult' ? 'xmult' : 'mult')
-                            : 'chips',
+                        kind: e.kind,
                         value: e.value,
-                        source: {
-                            type: e.source ?? 'opponent',
-                            id: e.sourceInstanceId ?? e.sourceType ?? 'unknown',
-                            label: e.sourceType ?? e.source ?? 'unknown',
-                        },
+                        source: e.source ?? { type: 'opponent', id: 'unknown', label: 'unknown' },
                     }));
                 return { pipelineSteps };
             });
-        this._opponentUI = new OpponentUI(this._hudUI.opponentSlot);
+        this._opponentUI = this._hudUI.opponentUI;
         this._tournamentUI = new TournamentUI();
         this._tournamentUI.mount(document.body);
         this._shopManager = new ShopManager();
         this._boosterPackManager = new BoosterPackManager();
         this._shopUI = new ShopUI();
         this._shopUI.mount(document.body);
-        this._packSelectionUI = new PackSelectionUI();
+        this._packSelectionUI = new PackSelectionUI(this._pngTheme);
         this._packSelectionUI.mount(document.body);
 
         this._inputController = new InputController({
             chessGame: this._chessGame,
             chessboardUI: this._chessBoardUI,
-            gameController: this,
+            onMove: (from, to, promotion) => this.playerMove(from, to, promotion),
             playerColor: GameController.PLAYER_COLOR,
             soundManager: this._soundManager,
+            hudUI: this._hudUI,
         });
 
         this._initChessSet();
@@ -107,6 +102,7 @@ class GameController {
         this._animationCoordinator.reset();
         this._chessGame.reset();
         this._scoreEngine.reset();
+        this._jokerRegistry.resetStates();
 
         this._chessSet.shufflePieces();
         this._chessGame.setPiecesFromFen(
@@ -123,8 +119,6 @@ class GameController {
         });
         const startCommands = this._tournamentManager.triggerPowers('onGameStart', gameStartCtx);
         this._commandDispatcher.execute(startCommands, { scoreEngine: this._scoreEngine, chessGame: this._chessGame });
-
-        console.log(this._chessGame);
 
          //this._jokerRegistry.add('HEDGE_KNIGHT');
          //this._jokerRegistry.add('STABLEMASTER');
@@ -153,6 +147,18 @@ class GameController {
         this._transitionTo('playerMove');
         try {
             this._chessGame.move({ from, to, promotion: promotion || undefined }, PLAYER.USER);
+
+            // If a piece expired this turn (e.g. glass break), verify the position is still legal.
+            // chess.js only validates FEN format; we use Stockfish to check whether our king
+            // was left in check by the mutation.
+            if (this._pendingFenValidation) {
+                this._pendingFenValidation = false;
+                const legal = await this._engine.validateFen(this._chessGame.fen());
+                if (!legal) {
+                    this._outcomeResolver.notifyIllegal();
+                    return;
+                }
+            }
 
             if (this._chessGame.isGameOver()) return;
 
@@ -210,10 +216,7 @@ class GameController {
     _transitionTo(next) {
         const allowed = GameController._TRANSITIONS[this._state];
         if (!allowed) {
-            console.warn(`[StateMachine] Unknown state "${this._state}" — cannot transition to "${next}"`);
-            this._state = next;
-            this._inputController?.setEnabled(this._state === 'idle');
-            return;
+            throw new Error(`[StateMachine] Unknown state "${this._state}" — cannot transition to "${next}"`);
         }
         if (!allowed.includes(next)) {
             throw new Error(`[StateMachine] Illegal transition: "${this._state}" → "${next}". Allowed: [${allowed.join(', ')}]`);
@@ -229,8 +232,9 @@ class GameController {
             return;
         }
         const { reason, tournament, opponent, score, reward } = outcome;
-        if (reason === 'loss') {
-            console.log(`[GAME RESULT] Loss by checkmate. Tournament: ${tournament}, Opponent: ${opponent}, Score: ${score}.`);
+        if (reason === 'loss' || reason === 'illegal') {
+            const cause = reason === 'loss' ? 'checkmate' : 'illegal position (king in check after glass break)';
+            console.log(`[GAME RESULT] Loss by ${cause}. Tournament: ${tournament}, Opponent: ${opponent}, Score: ${score}.`);
             this._transitionTo('game-over');
             return;
         }
@@ -243,23 +247,30 @@ class GameController {
         this._shopUI.show(jokerSlots, packSlots, this._wallet.balance);
     }
 
-    _initChessSet() {
-        for (const type of ['P','P','P','P','P','P','P','P','p','p','p','p','p','p','p','p','r','n','b','q','k','b','n','r','R','N','B','Q','K','B','N','R']) {
+    _initChessSet() { // this function is alive for testing stuff, will be fixed in the future
+        for (const type of ['P', 'P','P','P']) {
             this._chessSet.addPiece(type, {
-                modifiers: ['', 'gold'],
-                //style: ALL_STYLES[Math.floor(Math.random() * ALL_STYLES.length)],
+                enhancement: 'metal',
+            });
+        }
+
+        for (const type of ['P','P','P','P','p','p','p','p','p','p','p','p','r','n','b','q','k','b','n','r','R','N','B','Q','K','B','N','R']) {
+            this._chessSet.addPiece(type, {
+               // enhancement: 'metal',
             });
         }
     }
 
     _wireEvents() {
-        this._tournamentUI.on('select', id => {
+        this._tournamentUI.on('select', async () => {
             this._tournamentManager.advanceOpponent();
             this._transitionTo('idle');
-            this.resetChessboard();
+            await this.resetChessboard();
         });
 
         this._shopUI.on('buy-joker', jokerId => {
+            const price = this._shopManager.peekPrice(jokerId);
+            if (!this._wallet.canAfford(price)) return;
             const def = this._shopManager.buy(jokerId);
             this._wallet.spend(def.price);
             this._hudUI.setMoney(this._wallet.balance);
@@ -268,6 +279,8 @@ class GameController {
         });
 
         this._shopUI.on('buy-pack', packDef => {
+            if (this._packSelectionUI.isOpen) return;
+            if (!this._wallet.canAfford(packDef.price)) return;
             const def = this._boosterPackManager.buy(packDef.id);
             this._wallet.spend(def.price);
             this._hudUI.setMoney(this._wallet.balance);
@@ -279,8 +292,6 @@ class GameController {
             for (const pieceData of pieces) {
                 const type      = pieceData.type.toUpperCase();
                 this._chessSet.addPiece(type, {
-                    style:       pieceData.style,
-                    modifiers:   pieceData.modifiers ?? [],
                     enhancement: pieceData.enhancement ?? 'none',
                     edition:     pieceData.edition ?? 'base',
                 });
@@ -355,7 +366,7 @@ class GameController {
             this._commandDispatcher.execute(jokerSideEffects, { scoreEngine: this._scoreEngine, chessGame: this._chessGame });
 
             // Opponent onMove reactions yield pipeline steps (phase 1b); side effects execute immediately
-            const opponentSteps = this._commandDispatcher.executeAndCollect(moveCommands, { scoreEngine: this._scoreEngine, chessGame: this._chessGame });
+            const opponentSteps = this._commandDispatcher.execute(moveCommands, { scoreEngine: this._scoreEngine, chessGame: this._chessGame });
 
             // Score the turn in the domain layer — fires 'update'/'money' events for wallet and outcome
             const scoringSteps = ScoringPipeline.build(turn, gameCtx, this._jokerRegistry, this._chessboard.getState(), opponentSteps);
@@ -375,6 +386,15 @@ class GameController {
         this._scoreEngine.on('money', ({ amount }) => {
             this._wallet.add(amount);
             this._hudUI.setMoney(this._wallet.balance);
+        });
+        // Piece expires (e.g. glass break) — remove from domain + persistent deck.
+        // UI removal is handled by AnimationCoordinator after the move animation completes.
+        // Flag triggers post-move FEN legality check (a broken pinned piece can leave us in check).
+        this._scoreEngine.on('expire', ({ source }) => {
+            if (source?.type !== 'piece' || !source.id) return;
+            this._chessGame.removePieceById(source.id);
+            this._chessSet.removePieceById(source.id);
+            this._pendingFenValidation = true;
         });
     }
 }

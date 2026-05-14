@@ -99,6 +99,55 @@ class StockfishEngine {
     }
 
     /**
+     * Validates that a FEN position is legal — specifically, that the side which JUST moved
+     * did not leave its own king in check. chess.js only validates FEN format, not chess legality,
+     * so this is needed after operations that mutate the board outside the standard move flow
+     * (e.g. glass-enhancement break removing a pinned piece).
+     *
+     * Uses Stockfish's `d` debug command, which emits a "Checkers:" line listing pieces giving
+     * check to the side-to-move. We flip the active color so the side that just moved is now
+     * "to move"; if any checkers are listed, that king is in check → illegal.
+     *
+     * @param {string} fen
+     * @returns {Promise<boolean>} true if legal, false if the side that just moved is in check.
+     */
+    async validateFen(fen) {
+        if (!fen) throw new Error("StockfishEngine.validateFen: fen is required");
+        if (!this._ready) await this.init();
+        await this._sync();
+
+        const parts = fen.split(" ");
+        if (parts.length < 2) return false;
+        parts[1] = parts[1] === "w" ? "b" : "w";
+        const flippedFen = parts.join(" ");
+
+        return new Promise((resolve) => {
+            let checkersLine = null;
+
+            const onMessage = (e) => {
+                const line = e.data;
+                if (typeof line !== "string") return;
+                if (line.startsWith("Checkers:")) checkersLine = line;
+                if (line === "readyok") {
+                    this._worker.removeEventListener("message", onMessage);
+                    if (checkersLine === null) {
+                        // 'd' produced no Checkers line — engine doesn't support it; treat as valid.
+                        resolve(true);
+                        return;
+                    }
+                    const checkers = checkersLine.slice("Checkers:".length).trim();
+                    resolve(checkers === "");
+                }
+            };
+
+            this._worker.addEventListener("message", onMessage);
+            this._worker.postMessage(`position fen ${flippedFen}`);
+            this._worker.postMessage("d");
+            this._worker.postMessage("isready");
+        });
+    }
+
+    /**
      * Stop any running search and terminate the worker.
      */
     destroy() {

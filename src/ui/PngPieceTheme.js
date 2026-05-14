@@ -1,49 +1,53 @@
     class PngPieceTheme {
         constructor() {
-            this._styles = {
+            // CSS var(--sprite) resolves url() relative to the stylesheet, not the document.
+            // Use absolute URLs so the path is unambiguous regardless of CSS file location.
+            const base = new URL('sprites/', document.baseURI).href;
+            const s = p => base + p;
+            this._spriteFamilies = {
                 standard: {
-                    'p': '/sprites/standard/bp.png',
-                    'b': '/sprites/standard/bb.png',
-                    'r': '/sprites/standard/br.png',
-                    'n': '/sprites/standard/bn.png',
-                    'q': '/sprites/standard/bq.png',
-                    'k': '/sprites/standard/bk.png',
+                    'p': s('standard/bp.png'),
+                    'b': s('standard/bb.png'),
+                    'r': s('standard/br.png'),
+                    'n': s('standard/bn.png'),
+                    'q': s('standard/bq.png'),
+                    'k': s('standard/bk.png'),
 
-                    'P': '/sprites/standard/wp.png',
-                    'B': '/sprites/standard/wb.png',
-                    'R': '/sprites/standard/wr.png',
-                    'N': '/sprites/standard/wn.png',
-                    'Q': '/sprites/standard/wq.png',
-                    'K': '/sprites/standard/wk.png',
+                    'P': s('standard/wp.png'),
+                    'B': s('standard/wb.png'),
+                    'R': s('standard/wr.png'),
+                    'N': s('standard/wn.png'),
+                    'Q': s('standard/wq.png'),
+                    'K': s('standard/wk.png'),
                 },
                 rock: {
-                    'p': '/sprites/rock.png',
-                    'b': '/sprites/rock.png',
-                    'r': '/sprites/rock.png',
-                    'n': '/sprites/rock.png',
-                    'q': '/sprites/rock.png',
-                    'k': '/sprites/rock.png',
-                    'P': '/sprites/rock.png',
-                    'B': '/sprites/rock.png',
-                    'R': '/sprites/rock.png',
-                    'N': '/sprites/rock.png',
-                    'Q': '/sprites/rock.png',
-                    'K': '/sprites/rock.png',
+                    'p': s('rock.png'),
+                    'b': s('rock.png'),
+                    'r': s('rock.png'),
+                    'n': s('rock.png'),
+                    'q': s('rock.png'),
+                    'k': s('rock.png'),
+                    'P': s('rock.png'),
+                    'B': s('rock.png'),
+                    'R': s('rock.png'),
+                    'N': s('rock.png'),
+                    'Q': s('rock.png'),
+                    'K': s('rock.png'),
                 },
                 checkers: {
-                    'p': '/sprites/checkers/bp.png',
-                    'b': '/sprites/checkers/bb.png',
-                    'r': '/sprites/checkers/br.png',
-                    'n': '/sprites/checkers/bn.png',
-                    'q': '/sprites/checkers/bq.png',
-                    'k': '/sprites/checkers/bk.png',
+                    'p': s('checkers/bp.png'),
+                    'b': s('checkers/bb.png'),
+                    'r': s('checkers/br.png'),
+                    'n': s('checkers/bn.png'),
+                    'q': s('checkers/bq.png'),
+                    'k': s('checkers/bk.png'),
 
-                    'P': '/sprites/checkers/wp.png',
-                    'B': '/sprites/checkers/wb.png',
-                    'R': '/sprites/checkers/wr.png',
-                    'N': '/sprites/checkers/wn.png',
-                    'Q': '/sprites/checkers/wq.png',
-                    'K': '/sprites/checkers/wk.png',
+                    'P': s('checkers/wp.png'),
+                    'B': s('checkers/wb.png'),
+                    'R': s('checkers/wr.png'),
+                    'N': s('checkers/wn.png'),
+                    'Q': s('checkers/wq.png'),
+                    'K': s('checkers/wk.png'),
                 },
             };
             this._preload();
@@ -51,7 +55,7 @@
 
         _preload() {
             const seen = new Set();
-            for (const family of Object.values(this._styles)) {
+            for (const family of Object.values(this._spriteFamilies)) {
                 for (const path of Object.values(family)) {
                     if (seen.has(path)) continue;
                     seen.add(path);
@@ -61,35 +65,50 @@
             }
         }
 
+        // Pick sprite family from enhancement. Enhancements that don't swap sprites fall back to standard.
+        _familyFor(enhancement) {
+            if (enhancement === 'rock' || enhancement === 'checkers') return this._spriteFamilies[enhancement];
+            return this._spriteFamilies.standard;
+        }
+
         render(piece) {
-            const family = this._styles[piece.style] ?? this._styles.standard;
+            const enhancement = piece.enhancement ?? 'none';
+            const edition     = piece.edition ?? 'base';
+            const family = this._familyFor(enhancement);
             const path = family[piece.type];
             if (!path) return '';
             const sprite = `style="--sprite:url(${path})"`;
-            // Accept both live Piece (Set modifiers, color() method) and snapshots (Array modifiers, color string)
             const pieceColor = typeof piece.color === 'function' ? piece.color() : piece.color;
-            const hasMod = mod => Array.isArray(piece.modifiers) ? piece.modifiers.includes(mod) : piece.modifiers?.has(mod);
-            const modifiers = Object.entries(PngPieceTheme.MODIFIERS)
-                .filter(([mod]) => hasMod(mod))
-                .map(([, cls]) => `<div class="${cls}" data-sync-delay ${sprite}></div>`)
+
+            const overlayClasses = [
+                PngPieceTheme.ENHANCEMENT_OVERLAYS[enhancement],
+                PngPieceTheme.EDITION_OVERLAYS[edition],
+            ].filter(Boolean);
+            const overlays = overlayClasses
+                .map(cls => `<div class="${cls}" data-sync-delay ${sprite}></div>`)
                 .join('');
-            const neonClass = hasMod('neon') ? 'neon' : '';
-            const glassClass = hasMod('glass') ? 'glass-tint' : '';
+
+            const neonClass  = edition === 'neon'        ? 'neon'       : '';
+            const glassClass = enhancement === 'glass'   ? 'glass-tint' : '';
             const colorClass = pieceColor === 'b' ? 'piece-black' : 'piece-white';
 
             return `<div class="piece-modifier-wrapper ${neonClass} ${glassClass} ${colorClass}">
                 <img src="${path}" alt="${piece.type}" draggable="false" data-sync-delay>
-                ${modifiers}
+                ${overlays}
             </div>`;
         }
     }
-    PngPieceTheme.MODIFIERS = {
-        holo:        'holo-overlay',
-        poly:        'poly-overlay',
-        metal:       'metal-overlay',
-        shine:       'shine-overlay',
-        neon:        'neon-tint',
-        glass:       'glass-overlay',
-        gold:        'gold-overlay',
-        stripes:     'stripes-overlay',
+    // Single-overlay-per-axis: enhancement contributes one, edition contributes one.
+    PngPieceTheme.ENHANCEMENT_OVERLAYS = {
+        metal:   'metal-overlay',
+        glass:   'glass-overlay',
+        gold:    'gold-overlay',
+        stripes: 'stripes-overlay',
+        // checkers + rock swap sprite family — no overlay div needed
+    };
+    PngPieceTheme.EDITION_OVERLAYS = {
+        holo:  'holo-overlay',
+        poly:  'poly-overlay',
+        shine: 'shine-overlay',
+        neon:  'neon-tint',
     };

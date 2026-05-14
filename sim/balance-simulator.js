@@ -122,6 +122,17 @@ class HeuristicScenarioGenerator {
         this._pieceWeights = options.pieceWeights ?? { P: 27, N: 18, B: 16, R: 16, Q: 12, K: 11 };
         this._capturedPieceWeights = options.capturedPieceWeights ?? { P: 50, N: 74, B: 65, R: 45, Q: 51 };
         this._heldPieceRange = options.heldPieceRange ?? [5, 14];
+        // Enhancement + edition rolls per snapshot piece. Defaults = no-op so existing runs unchanged.
+        // Pass booster-pack-style weights to measure their balance impact.
+        this._enhancementWeights = options.enhancementWeights ?? { none: 1 };
+        this._editionWeights     = options.editionWeights     ?? { base: 1 };
+    }
+
+    _rollModifiers(rng) {
+        return {
+            enhancement: rng.weightedPick(this._enhancementWeights),
+            edition:     rng.weightedPick(this._editionWeights),
+        };
     }
 
     makeGamePlan(turnCount, rng) {
@@ -149,10 +160,11 @@ class HeuristicScenarioGenerator {
             id: `turn-${turnIndex}-piece`,
             type: promotion ? promotion.toUpperCase() : movedType,
             color: this._playerColor,
+            ...this._rollModifiers(rng),
         });
         const boardState = makeBoardState({
             movingPiece,
-            heldPieces: makeHeldPieces(rng, this._heldPieceRange, this._playerColor),
+            heldPieces: makeHeldPieces(rng, this._heldPieceRange, this._playerColor, () => this._rollModifiers(rng)),
         });
         const captured = isCapture
             ? makePieceSnapshot({ id: `turn-${turnIndex}-captured`, type: rng.weightedPick(this._capturedPieceWeights), color: oppositeColor(this._playerColor) })
@@ -200,7 +212,7 @@ class HeuristicScenarioGenerator {
     }
 }
 
-function makePieceSnapshot({ id, type, color, style = 'standard', modifiers = [], name = null }) {
+function makePieceSnapshot({ id, type, color, style = 'standard', modifiers = [], name = null, enhancement = 'none', edition = 'base' }) {
     const normalizedType = color === 'w' ? type.toUpperCase() : type.toLowerCase();
     return Object.freeze({
         id,
@@ -210,15 +222,17 @@ function makePieceSnapshot({ id, type, color, style = 'standard', modifiers = []
         modifiers: Object.freeze([...modifiers]),
         name,
         label: name ?? normalizedType,
+        enhancement,
+        edition,
     });
 }
 
-function makeHeldPieces(rng, range, color) {
+function makeHeldPieces(rng, range, color, rollModifiers = () => ({ enhancement: 'none', edition: 'base' })) {
     const count = rng.int(range[0], range[1]);
     const held = [];
     for (let i = 0; i < count; i++) {
         const type = rng.weightedPick({ P: 52, N: 12, B: 12, R: 12, Q: 6, K: 6 });
-        held.push(makePieceSnapshot({ id: `held-${i}-${crypto.randomUUID()}`, type, color }));
+        held.push(makePieceSnapshot({ id: `held-${i}-${crypto.randomUUID()}`, type, color, ...rollModifiers() }));
     }
     return held;
 }
@@ -250,7 +264,11 @@ class BalanceSimulator {
         const seed = config.seed ?? this._defaultSeed;
         const games = config.games ?? 500;
         const turnsPerGame = config.turnsPerGame ?? 12;
-        const jokerIds = [...(config.jokers ?? [])];
+        // jokers entries may be string id or { id, edition } to assign holo/poly/shine/neon.
+        const jokerSpecs = (config.jokers ?? []).map(entry =>
+            typeof entry === 'string' ? { id: entry, edition: 'base' } : { id: entry.id, edition: entry.edition ?? 'base' }
+        );
+        const jokerIds = jokerSpecs.map(s => s.id);
         const bossId = config.bossId ?? null;
         const rng = new Rng(seed);
         const gamePlans = Array.from({ length: games }, () => this._generator.makeGamePlan(turnsPerGame, rng));
@@ -258,6 +276,7 @@ class BalanceSimulator {
         const baseResult = this._runPlans({
             gamePlans,
             jokerIds,
+            jokerSpecs,
             bossId,
             targetScore: config.targetScore ?? null,
             tournament: config.tournament ?? 1,
@@ -268,9 +287,11 @@ class BalanceSimulator {
 
         const ablations = jokerIds.map((jokerId, index) => {
             const reduced = jokerIds.filter((_, i) => i !== index);
+            const reducedSpecs = jokerSpecs.filter((_, i) => i !== index);
             const result = this._runPlans({
                 gamePlans,
                 jokerIds: reduced,
+                jokerSpecs: reducedSpecs,
                 bossId,
                 targetScore: config.targetScore ?? null,
                 tournament: config.tournament ?? 1,
@@ -287,7 +308,8 @@ class BalanceSimulator {
         return { ...baseResult, ablations };
     }
 
-    _runPlans({ gamePlans, jokerIds, bossId, targetScore, tournament, opponentSlot }) {
+    _runPlans({ gamePlans, jokerIds, jokerSpecs, bossId, targetScore, tournament, opponentSlot }) {
+        const specs = jokerSpecs ?? jokerIds.map(id => ({ id, edition: 'base' }));
         const { ScoreEngine, JokerRegistry, Opponent, BOSS_DEFS, getScoreTarget, OPPONENT_CONFIG } = this._runtime;
         const perGame = [];
         const aggregateSources = new Map();
@@ -296,7 +318,7 @@ class BalanceSimulator {
         for (const plan of gamePlans) {
             const scoreEngine = new ScoreEngine();
             const registry = new JokerRegistry();
-            for (const jokerId of jokerIds) registry.add(jokerId);
+            for (const spec of specs) registry.add(spec.id, { edition: spec.edition });
             const opponent = bossId ? new Opponent(BOSS_DEFS[bossId]) : null;
             const jokerSlots = registry.getActive().map((joker, index) => ({
                 instanceId: joker.instanceId,
@@ -371,15 +393,9 @@ class BalanceSimulator {
                     .filter(effect => effect.value != null)
                     .map(effect => makeScoringStep({
                         event: EventType.ON_MOVE_PLAYED,
-                        kind: effect.destination === 'mult'
-                            ? (effect.operation === 'mult' ? 'xmult' : 'mult')
-                            : 'chips',
+                        kind: effect.kind,
                         value: effect.value,
-                        source: {
-                            type: effect.source ?? 'opponent',
-                            id: effect.sourceInstanceId ?? effect.sourceType ?? 'unknown',
-                            label: effect.sourceType ?? effect.source ?? 'unknown',
-                        },
+                        source: effect.source ?? { type: 'opponent', id: 'unknown', label: 'unknown' },
                     }));
                 return { pipelineSteps };
             });
@@ -476,6 +492,41 @@ class BalanceSimulator {
 
             const bossOpponentCommands = opponent ? opponent.triggerPowers('onOpponentMove', cpuCtx) : [];
             dispatcher.execute(bossOpponentCommands, { scoreEngine });
+        }
+
+        // End-of-game phase: ENHANCEMENT_ALIVE (gold money, etc.) + ON_GAME_END joker reactions.
+        // Uses the final scenario's board as the alive-piece set.
+        const finalScenario = plan[plan.length - 1];
+        if (finalScenario) {
+            const endCtx = makePowerContext({
+                currentScore: scoreEngine.score,
+                boardState: finalScenario.boardState,
+                playerColor: 'w',
+                turn: null,
+                lastMove: null,
+                BoardInspector,
+            });
+            const endSteps = ScoringPipeline.buildGameEnd(finalScenario.boardState, endCtx, registry);
+            const endSnapshots = scoreEngine.run(endSteps);
+            const lastEnd = endSnapshots.find(s => s.isLast);
+            const endChips = lastEnd?.base ?? 0;
+            const endMult  = lastEnd?.mult  ?? 1;
+            for (const step of endSteps) {
+                const label = resolveSourceLabel(step.source, jokerSlots);
+                const existing = sources.get(label) ?? makeSourceStat(label);
+                existing.triggers++;
+                existing.kinds[step.kind] = (existing.kinds[step.kind] ?? 0) + 1;
+                if (typeof step.value === 'number') {
+                    existing.rawValue += step.value;
+                    existing.valuesByKind[step.kind] = (existing.valuesByKind[step.kind] ?? 0) + step.value;
+                    let effective = 0;
+                    if (step.kind === 'chips')  effective = step.value * endMult;
+                    if (step.kind === 'mult')   effective = endChips * step.value;
+                    if (step.kind === 'xmult')  effective = endChips * endMult * (1 - 1 / step.value);
+                    existing.effectiveScore = (existing.effectiveScore ?? 0) + effective;
+                }
+                sources.set(label, existing);
+            }
         }
 
         return {

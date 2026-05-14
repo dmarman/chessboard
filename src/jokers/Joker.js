@@ -3,11 +3,12 @@
         constructor(def, options = {}) {
             this.instanceId = crypto.randomUUID();
             this.defId = def.id;
+            this._def = def;
             this.name = def.name;
             this.description = def.description;
             this.type = options.type || def.type || 'Q';
-            this.style = options.style || 'standard';
-            this.modifiers = new Set(options.modifiers ?? []);
+            this.enhancement = options.enhancement ?? 'none';
+            this.edition = options.edition ?? 'base';
             this._color = options.color || 'w';
             // Mutable state bag — each def owns its own schema (e.g. { count: 0 })
             this.state = {};
@@ -15,10 +16,13 @@
 
         color() { return this._color; }
 
+        // Wipe per-instance state — call between games so counters/streaks don't bleed across boards.
+        resetState() { this.state = {}; }
+
         // Returns ScoringStep[] for the given pipeline phase — empty if def doesn't handle this event.
         // Stamps this.instanceId onto source.id so AnimationCoordinator can route to the correct joker card.
         evaluate(event, ctx) {
-            const def = JOKER_DEFS[this.defId];
+            const def = this._def;
             if (!def.events?.includes(event)) return [];
             const result = def.trigger(ctx, this.state);
             if (!result) return [];
@@ -33,7 +37,7 @@
         // Defs declare side effects via an optional sideEffects(ctx, state) method, separate from trigger().
         // This avoids double-firing trigger() and removes the duck-type split on ScoringStep shape.
         evaluateSideEffects(ctx) {
-            const def = JOKER_DEFS[this.defId];
+            const def = this._def;
             if (typeof def.sideEffects !== 'function') return [];
             const result = def.sideEffects(ctx, this.state);
             if (!result) return [];
