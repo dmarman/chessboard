@@ -2,6 +2,7 @@
 // State machine: idle → playerMove → cpuMove → resolveOutcome → shop → tournamentSelect → idle
 class GameController {
     static PLAYER_COLOR = 'w';
+    static DRAG_ENABLED = true;
 
     constructor() {
         this._state = 'idle';
@@ -15,7 +16,8 @@ class GameController {
         this._engine = new StockfishEngine();
         this._chessBoardUI = new ChessboardUI('chessboard', {
             orientation: GameController.PLAYER_COLOR,
-            renderPiece: piece => this._pngTheme.render(piece)
+            renderPiece: piece => this._pngTheme.render(piece),
+            dragEnabled: GameController.DRAG_ENABLED,
         });
         this._soundManager = new SoundManager({
             chips_card:     'audio/chips_card.wav',
@@ -250,7 +252,7 @@ class GameController {
     _initChessSet() { // this function is alive for testing stuff, will be fixed in the future
         for (const type of ['P', 'P','P','P']) {
             this._chessSet.addPiece(type, {
-                enhancement: 'metal',
+                //enhancement: 'metal',
             });
         }
 

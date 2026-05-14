@@ -12,7 +12,8 @@
 
         reset() {
             this._chess.reset();
-            this._chessboard.setPiecesFromFen(this._chess.fen(), []);
+            // Board left empty; caller must follow with setPiecesFromFen to populate with deck pieces.
+            this._chessboard.clear();
         }
 
         // Returns MoveIntent[] — no raw chess.js shapes leak out.

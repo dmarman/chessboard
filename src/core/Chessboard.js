@@ -33,6 +33,11 @@
             return Array.from({length: 8}, () => Array(8).fill(null));
         }
 
+        clear() {
+            this._board = this.createBoard();
+            this.pieces = [];
+        }
+
         setPiecesFromFen(fen, pieces) {
             this.pieces = [...pieces];
             // revert in-place promotions so deck pieces return to original type before re-placing

@@ -1,4 +1,5 @@
-// Owns click-to-move selection state. Subscribes to ChessboardUI 'squareClick' events,
+// Owns input-driven selection state. Click-to-move and drag-and-drop both feed the same
+// selection/commit path: subscribes to ChessboardUI 'squareClick'/'pieceDrag*' events,
 // queries ChessGame for legal moves, drives UI highlights, invokes onMove(from, to, promotion)
 // to commit moves. Enabled only while the game-state machine is 'idle'.
 class InputController {
@@ -14,10 +15,15 @@ class InputController {
         this._selectedPiece = null;        // piece snapshot for preview
         this._legalFromSelected = [];      // move descriptors {from, to, promotion, san}
         this._legalTargets = new Set();    // dest squares for fast hover lookup
+        this._pendingDeselect = false;     // true when pointerdown landed on already-selected square
         this._enabled = false;
 
-        this._ui.on('squareClick', ({ square }) => this._onSquareClick(square));
-        this._ui.on('squareHover', ({ square }) => this._onSquareHover(square));
+        this._ui.on('squareClick',     ({ square }) => this._onSquareClick(square));
+        this._ui.on('squarePointerUp', ({ square }) => this._onSquarePointerUp(square));
+        this._ui.on('squareHover',     ({ square }) => this._onSquareHover(square));
+        this._ui.on('pieceDragStart',  ({ square }) => this._onDragStart(square));
+        this._ui.on('pieceDragOver',   ({ square }) => this._onSquareHover(square));
+        this._ui.on('pieceDragEnd',    ({ from, to }) => this._onDragEnd(from, to));
     }
 
     setEnabled(enabled) {
@@ -39,8 +45,9 @@ class InputController {
             return;
         }
 
+        // Already selected: rising edge does nothing; flag for falling-edge deselect.
         if (square === this._selected) {
-            this._clearSelection();
+            this._pendingDeselect = true;
             return;
         }
 
@@ -66,6 +73,46 @@ class InputController {
         }
 
         // Anywhere else -> deselect.
+        this._clearSelection();
+    }
+
+    _onSquarePointerUp(square) {
+        if (!this._enabled) return;
+        if (this._chessGame.isGameOver()) return;
+        if (this._chessGame.turn() !== this._playerColor) return;
+        if (this._pendingDeselect && square === this._selected) this._clearSelection();
+        this._pendingDeselect = false;
+    }
+
+    _onDragStart(square) {
+        if (!this._enabled) return;
+        if (this._chessGame.isGameOver()) return;
+        if (this._chessGame.turn() !== this._playerColor) return;
+        // If a different piece was click-selected, drop that selection before adopting the dragged one.
+        if (this._selected && this._selected !== square) this._clearSelection();
+        if (!this._selected) this._trySelect(square);
+    }
+
+    _onDragEnd(from, to) {
+        if (!this._enabled) return;
+        // Selection may have been cleared mid-drag (state change, etc.) or piece had no legal moves; still clear highlights.
+        if (this._selected !== from) {
+            this._clearSelection();
+            return;
+        }
+        if (to && to !== from) {
+            const move = this._legalFromSelected.find(m => m.to === to);
+            if (move) {
+                const promotion = this._legalFromSelected.some(m => m.to === to && m.promotion) ? 'q' : null;
+                this._clearSelection({ resetHud: false });
+                // Claim the dragged piece so ChessboardUI skips the slide animation: the piece is
+                // already under the cursor and will be parked on the destination square instantly.
+                this._ui.consumeDragForCommit();
+                this._onMove(from, to, promotion);
+                return;
+            }
+        }
+        // Drop off-board, on origin, or onto illegal target -> deselect.
         this._clearSelection();
     }
 
@@ -95,8 +142,10 @@ class InputController {
         if (!this._selected || !this._selectedPiece) return;
         if (square && this._legalTargets.has(square)) {
             this._showPreview(square);
+            this._ui.setHoverTarget(square);
         } else {
             this._showPreview(null);
+            this._ui.setHoverTarget(null);
         }
     }
 
@@ -163,6 +212,7 @@ class InputController {
         this._selectedPiece = null;
         this._legalFromSelected = [];
         this._legalTargets = new Set();
+        this._pendingDeselect = false;
         this._ui.clearHighlights();
         if (resetHud) this._hudUI?.clearPreview();
     }

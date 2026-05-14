@@ -5,7 +5,6 @@
 
         render(opponent) {
             this._el.innerHTML = '';
-            console.log(opponent.reward)
             if (!opponent) return;
             this._el.appendChild(this._buildCard(opponent));
         }

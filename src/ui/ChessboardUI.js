@@ -10,6 +10,9 @@
             this._shakeMs = options.shakeMs ?? 400;
             this._renderPiece = options.renderPiece ?? (() => '');
             this._orientation = options.orientation ?? 'w';
+            this._dragEnabled = options.dragEnabled ?? true;
+            this._dragThreshold = options.dragThreshold ?? 5;
+            this._dragState = null;
             this.pieceElements = new Map();
             this.squareElements = new Map(); // algebraic ("e4") -> square <div>
             this.piecesLayer = null;
@@ -30,6 +33,12 @@
         get shakeMs() { return this._shakeMs; }
         set shakeMs(v) { this._shakeMs = v; this._updateStyles(); }
 
+        get dragEnabled() { return this._dragEnabled; }
+        setDragEnabled(v) {
+            this._dragEnabled = !!v;
+            if (!this._dragEnabled) this._cancelDrag();
+        }
+
         _updateStyles() {
             const s = this.squareSize;
             const dot = Math.round(s * 0.28);
@@ -38,6 +47,7 @@
                 .chessboard-ui .chess-square { width: ${s}px; height: ${s}px; position: relative; cursor: pointer; }
                 .chessboard-ui .chess-square.light { background: ${this._lightColor}; }
                 .chessboard-ui .chess-square.dark { background: ${this._darkColor}; }
+                .chessboard-ui .chess-square.has-piece { cursor: grab; }
                 .chessboard-ui .chess-square.selected { box-shadow: inset 0 0 0 9999px rgba(255, 220, 60, 0.40); }
                 .chessboard-ui .chess-square.legal-move::after {
                     content: ''; position: absolute; left: 50%; top: 50%;
@@ -49,6 +59,12 @@
                     border: ${ringBorder}px solid rgba(0, 0, 0, 0.32); border-radius: 50%;
                     box-sizing: border-box; pointer-events: none; z-index: 5;
                 }
+                .chessboard-ui .chess-square.hover-target,
+                .chessboard-ui .chess-square.drag-origin {
+                    outline: 3px solid rgba(255, 255, 255, 0.7);
+                    outline-offset: -3px;
+                    z-index: 6;
+                }
                 .chessboard-ui .piece {
                     position: absolute;
                     width: ${s}px;
@@ -56,6 +72,7 @@
                     transition: transform ${this._transitionMs}ms ease-in-out;
                     pointer-events: none;
                 }
+                body.chessboard-dragging, body.chessboard-dragging * { cursor: grabbing !important; }
             `;
         }
 
@@ -86,14 +103,9 @@
             }
             this.boardElement.appendChild(squaresLayer);
 
-            squaresLayer.addEventListener('click', (event) => {
-                const sq = event.target.closest('.chess-square');
-                if (!sq || !this.boardElement.contains(sq)) return;
-                const square = sq.dataset.square;
-                const row = parseInt(sq.dataset.row, 10);
-                const col = parseInt(sq.dataset.col, 10);
-                this.emit('squareClick', { square, row, col });
-            });
+            // Selection fires on rising edge (pointerdown), not on click, so it feels instant
+            // and matches the moment the drag visual starts following the cursor.
+            squaresLayer.addEventListener('pointerdown', (event) => this._onPointerDown(event));
 
             // Hover events — emits squareHover with the square under the pointer,
             // or null when pointer leaves the board. Used by InputController for
@@ -139,8 +151,156 @@
 
         clearHighlights() {
             for (const el of this.squareElements.values()) {
-                el.classList.remove('selected', 'legal-move', 'legal-move-capture');
+                el.classList.remove('selected', 'legal-move', 'legal-move-capture', 'hover-target', 'drag-origin');
             }
+            this._hoverTargetEl = null;
+        }
+
+        setHoverTarget(square) {
+            const next = square ? this.squareElements.get(square) : null;
+            if (next === this._hoverTargetEl) return;
+            this._hoverTargetEl?.classList.remove('hover-target');
+            next?.classList.add('hover-target');
+            this._hoverTargetEl = next ?? null;
+        }
+
+        _onPointerDown(event) {
+            if (event.button !== 0) return;
+            const sq = event.target.closest('.chess-square');
+            if (!sq || !this.boardElement.contains(sq)) return;
+            const row = parseInt(sq.dataset.row, 10);
+            const col = parseInt(sq.dataset.col, 10);
+            // Rising-edge selection: emit before any drag setup so InputController updates
+            // selection/highlights as the press lands, not on release.
+            this.emit('squareClick', { square: sq.dataset.square, row, col });
+
+            if (!this._dragEnabled) return;
+            const pieceEl = this.pieceElements.get(this._posKey(row, col));
+            if (!pieceEl) return;
+
+            const [vRow, vCol] = this._toVisual(row, col);
+            const rect = this.boardElement.getBoundingClientRect();
+            const half = this.squareSize / 2;
+            // Piece occupies (vCol*size, vRow*size) within boardElement; its center sits half a square in.
+            const pieceCenterClientX = rect.left + vCol * this.squareSize + half;
+            const pieceCenterClientY = rect.top + vRow * this.squareSize + half;
+
+            // Lift piece out of float, kill transition so it tracks the cursor exactly.
+            pieceEl._floatAnimation?.cancel();
+            pieceEl._floatAnimation = null;
+            pieceEl.style.transition = 'none';
+            pieceEl.style.zIndex = '1000';
+
+            this._dragState = {
+                square: sq.dataset.square,
+                row, col, pieceEl,
+                startX: event.clientX,
+                startY: event.clientY,
+                pieceCenterClientX,
+                pieceCenterClientY,
+                dragging: false,
+                lastOverSquare: null,
+                pointerId: event.pointerId,
+            };
+            // Snap piece center to cursor immediately on press.
+            this._applyDragTransform(this._dragState, event.clientX, event.clientY);
+            document.body.classList.add('chessboard-dragging');
+
+            const onMove = (ev) => this._onPointerMove(ev);
+            const onUp = (ev) => {
+                this._onPointerUp(ev);
+                window.removeEventListener('pointermove', onMove);
+                window.removeEventListener('pointerup', onUp);
+                window.removeEventListener('pointercancel', onUp);
+            };
+            window.addEventListener('pointermove', onMove);
+            window.addEventListener('pointerup', onUp);
+            window.addEventListener('pointercancel', onUp);
+        }
+
+        _onPointerMove(event) {
+            const s = this._dragState;
+            if (!s || event.pointerId !== s.pointerId) return;
+            this._applyDragTransform(s, event.clientX, event.clientY);
+            if (!s.dragging) {
+                const dx = event.clientX - s.startX;
+                const dy = event.clientY - s.startY;
+                if (Math.hypot(dx, dy) < this._dragThreshold) return;
+                s.dragging = true;
+                this.emit('pieceDragStart', { square: s.square });
+            }
+            const overSquare = this._squareAtClient(event.clientX, event.clientY);
+            if (overSquare !== s.lastOverSquare) {
+                s.lastOverSquare = overSquare;
+                const originEl = this.squareElements.get(s.square);
+                originEl?.classList.toggle('drag-origin', overSquare === s.square);
+                this.emit('pieceDragOver', { square: overSquare });
+            }
+        }
+
+        _onPointerUp(event) {
+            const s = this._dragState;
+            if (!s || event.pointerId !== s.pointerId) return;
+            this._dragState = null;
+            document.body.classList.remove('chessboard-dragging');
+            if (!s.dragging) {
+                // Tap without movement: snap piece back. Selection already fired on pointerdown.
+                this._resetDraggedPieceStyles(s.pieceEl);
+                // Falling-edge tap: lets InputController deselect on release rather than press.
+                this.emit('squarePointerUp', { square: s.square });
+                return;
+            }
+            const target = this._squareAtClient(event.clientX, event.clientY);
+            // Stash the piece so consumers can claim the drop (skip the slide); fall back to snap-back.
+            this._pendingDropPiece = s.pieceEl;
+            this.emit('pieceDragEnd', { from: s.square, to: target });
+            if (this._pendingDropPiece) {
+                this._resetDraggedPieceStyles(this._pendingDropPiece);
+                this._pendingDropPiece = null;
+            }
+        }
+
+        // Called synchronously inside a 'pieceDragEnd' handler when the consumer is about to commit
+        // the move. Leaves the dragged piece where it sits (centered on cursor) and instructs the
+        // next slideMove to skip its animation so the piece "lands" instantly at the destination.
+        consumeDragForCommit() {
+            this._pendingDropPiece = null;
+            this._skipNextSlide = true;
+        }
+
+        _cancelDrag() {
+            const s = this._dragState;
+            if (!s) return;
+            this._dragState = null;
+            document.body.classList.remove('chessboard-dragging');
+            this._resetDraggedPieceStyles(s.pieceEl);
+            if (s.dragging) this.emit('pieceDragEnd', { from: s.square, to: null });
+        }
+
+        _applyDragTransform(s, clientX, clientY) {
+            const tx = clientX - s.pieceCenterClientX;
+            const ty = clientY - s.pieceCenterClientY;
+            s.pieceEl.style.transform = `translate(${tx}px, ${ty}px)`;
+        }
+
+        _resetDraggedPieceStyles(el) {
+            el.style.transform = '';
+            el.style.zIndex = '';
+            el.style.transition = '';
+            this._animateFloat(el);
+        }
+
+        _squareAtClient(clientX, clientY) {
+            const rect = this.boardElement.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+            const boardPx = 8 * this.squareSize;
+            if (x < 0 || y < 0 || x >= boardPx || y >= boardPx) return null;
+            const vRow = Math.floor(y / this.squareSize);
+            const vCol = Math.floor(x / this.squareSize);
+            // _toVisual is its own inverse, so it also maps visual->logical.
+            const [row, col] = this._toVisual(vRow, vCol);
+            return this._squareFromRowCol(row, col);
         }
 
         _posKey(row, col) { return `${row},${col}`; }
@@ -158,8 +318,14 @@
             el.innerHTML = this._renderPiece(piece);
             this.piecesLayer.appendChild(el);
             this.pieceElements.set(this._posKey(row, col), el);
+            this._setSquareHasPiece(row, col, true);
             this._animateFloat(el);
             return el;
+        }
+
+        _setSquareHasPiece(row, col, hasPiece) {
+            const sqEl = this.squareElements.get(this._squareFromRowCol(row, col));
+            if (sqEl) sqEl.classList.toggle('has-piece', hasPiece);
         }
 
         _cancelAnimations() {
@@ -230,6 +396,7 @@
             const el = this.pieceElements.get(key);
             if (!el) return;
             this.pieceElements.delete(key);
+            this._setSquareHasPiece(row, col, false);
             el._floatAnimation?.cancel();
             el._floatAnimation = null;
             el.style.zIndex = '999';
@@ -308,17 +475,35 @@
                 ? this.pieceElements.get(this._posKey(capturedRow, capturedCol))
                 : null;
 
-            await this._animateSlide(el, dx, dy, vToRow, vToCol);
+            if (this._skipNextSlide) {
+                // Drag-and-drop commit: piece is already at the cursor (i.e. on the destination square).
+                // Park it at its new top/left with no transition, then restore the transition next frame
+                // so subsequent slides animate normally.
+                this._skipNextSlide = false;
+                el._floatAnimation?.cancel();
+                el._floatAnimation = null;
+                el.style.transition = 'none';
+                el.style.transform = '';
+                el.style.top = `${vToRow * this.squareSize}px`;
+                el.style.left = `${vToCol * this.squareSize}px`;
+                el.style.zIndex = '';
+                requestAnimationFrame(() => { el.style.transition = ''; });
+            } else {
+                await this._animateSlide(el, dx, dy, vToRow, vToCol);
+            }
             this._handleCaptureAndPromotion(el, piece, promotion);
 
             if (capturedEl) {
                 // Map deletion and DOM removal co-located: no code path can delete one without the other
                 this.pieceElements.delete(this._posKey(capturedRow, capturedCol));
+                this._setSquareHasPiece(capturedRow, capturedCol, false);
                 await this._animateThrow(capturedEl, dx, dy);
             }
 
             this.pieceElements.delete(fromKey);
             this.pieceElements.set(this._posKey(toRow, toCol), el);
+            this._setSquareHasPiece(fromRow, fromCol, false);
+            this._setSquareHasPiece(toRow, toCol, true);
         }
 
         // Shakes piece at square and shows score popup. Returns Promise.
