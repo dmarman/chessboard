@@ -49,6 +49,14 @@
                     'Q': s('checkers/wq.png'),
                     'K': s('checkers/wk.png'),
                 },
+                lucky: {
+                    'P': s('lucky/wp.png'),
+                    'B': s('lucky/wb.png'),
+                    'R': s('lucky/wr.png'),
+                    'N': s('lucky/wn.png'),
+                    'Q': s('lucky/wq.png'),
+                    'K': s('lucky/wk.png'),
+                },
             };
             this._preload();
         }
@@ -67,7 +75,7 @@
 
         // Pick sprite family from enhancement. Enhancements that don't swap sprites fall back to standard.
         _familyFor(enhancement) {
-            if (enhancement === 'rock' || enhancement === 'checkers') return this._spriteFamilies[enhancement];
+            if (enhancement === 'rock' || enhancement === 'checkers' || enhancement === 'lucky') return this._spriteFamilies[enhancement];
             return this._spriteFamilies.standard;
         }
 
@@ -100,10 +108,11 @@
     }
     // Single-overlay-per-axis: enhancement contributes one, edition contributes one.
     PngPieceTheme.ENHANCEMENT_OVERLAYS = {
-        metal:   'metal-overlay',
-        glass:   'glass-overlay',
-        gold:    'gold-overlay',
-        stripes: 'stripes-overlay',
+        metal:  'metal-overlay',
+        glass:  'glass-overlay',
+        gold:   'gold-overlay',
+        red:    'red-overlay',
+        blue:   'blue-overlay'
         // checkers + rock swap sprite family — no overlay div needed
     };
     PngPieceTheme.EDITION_OVERLAYS = {

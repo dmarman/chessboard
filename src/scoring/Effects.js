@@ -17,30 +17,42 @@
             b:  [{ kind: 'chips', value: 3  }],
             r:  [{ kind: 'chips', value: 5  }],
             q:  [{ kind: 'chips', value: 8  }],
-            k:  [{ kind: 'chips', value: 10 }],
+            k:  [{ kind: 'chips', value: 9 }],
         }
 
         // Enhancement: fires when piece moves (ON_PIECE_SCORED).
-        // metal/glass/stripes/checkers/rock share standard sprite; checkers/rock swap sprite family.
+        // metal/glass/red/checkers/rock share standard sprite; checkers/rock swap sprite family.
         // gold and metal are phase-specific — see ENHANCEMENT_ALIVE and ENHANCEMENT_HELD.
         // chance: optional float [0,1] — step only emits if Math.random() < chance.
         static ENHANCEMENT = {
-            glass:    [{ kind: 'xmult', value: 2   },
-                       { kind: 'expire', value: null, chance: 1 }], // 25% break on move
-            stripes:  [{ kind: 'mult',  value: 4   }],
-            checkers: [{ kind: 'xmult', value: 8  }],
-            rock:     [{ kind: 'chips', value: 10  }],
+            glass:    [{ kind: 'xmult',  value: 2 },
+                       { kind: 'expire', value: null, chance: 0.25 }], // 25% break on move
+            red:      [{ kind: 'mult',   value: 4  }], // Name: Cochineal
+            blue:     [{ kind: 'chips',  value: 30 }],
+            checkers: [{ kind: 'xmult',  value: 8  }],
+            rock:     [{ kind: 'chips',  value: 50 }],
+            lucky:    [{ kind: 'mult',   value: 20, chance: 1/5 },
+                       { kind: 'money',  value: 20, chance: 1/15 }
+            ],
         };
 
         // Movement restrictions per enhancement. Checked by ChessGame.moves() before exposing legal moves.
         // noCapture: piece may not capture (move to occupied square or en passant).
         static ENHANCEMENT_RESTRICTIONS = {
             rock: { noCapture: true },
+            // Bloodthirsty — ON_PIECE_SCORED: xmult 4, but restriction: mustCapture (only fires if move was a capture). Dead weight on quiet moves, brutal on captures. Knight that hunts = assassin build.
+        };
+
+        // Enhancement effects that fire immediately when opponent captures this piece (ON_PIECE_CAPTURED).
+        // Scored in isolation on the opponent's turn — use chips or money only (no xmult: no pipeline context).
+        static ENHANCEMENT_ON_CAPTURED = {
+            poisoned:    [{ kind: 'chips', value: 50 }],
+            golddigger:  [{ kind: 'money', value: 15 }],
         };
 
         // Enhancement effects that fire only when piece does NOT move (ON_NON_MOVED_PIECE).
         static ENHANCEMENT_HELD = {
-            metal: [{ kind: 'xmult', value: 5 }],
+            metal: [{ kind: 'xmult', value: 1.5 }],
         };
 
         // Enhancement effects that fire only when piece is alive at game end (ON_GAME_END).
@@ -110,7 +122,7 @@
 
         // Returns ScoringStep[] for the ON_GAME_END phase.
         // piece: { id, type, enhancement, edition, name }
-        static stepsFromAliveAtGameEnd({ id, type, enhancement, edition, name }) {
+        static stepsFromAliveAtGameEnd({ id, type, enhancement, edition, name }, row = null, col = null) {
             const t = type.toLowerCase();
             const label = name ?? t;
 
@@ -119,13 +131,50 @@
                     event: EventType.ON_GAME_END,
                     kind: e.kind,
                     value: e.value,
-                    source: { type: 'piece', id, label },
+                    source: { type: 'piece', id, label, row, col },
                 }));
 
             return [
                 ...tableToSteps(Effects.PIECE_ALIVE, t),
                 ...tableToSteps(Effects.ENHANCEMENT_ALIVE, enhancement?.toLowerCase()),
             ];
+        }
+
+        // Returns ScoringStep[] for a player piece captured by the opponent (ON_PIECE_CAPTURED).
+        // Scored immediately on the opponent's turn — not injected into the next player pipeline.
+        // capturedRow/capturedCol: where the piece stood, so the animator pulses that square.
+        // Prepends a seed mult:1 step so chip effects score as chips×1 instead of chips×0.
+        static stepsFromCapturedPiece({ id, type, enhancement, name }, capturedRow = null, capturedCol = null) {
+            const effects = Effects.ENHANCEMENT_ON_CAPTURED[enhancement?.toLowerCase()] ?? [];
+            if (!effects.length) return [];
+
+            const label = name ?? type?.toLowerCase();
+            const source = { type: 'piece', id, label, row: capturedRow, col: capturedCol };
+
+            const hasChips = effects.some(e => e.kind === 'chips');
+            const steps = [];
+
+            // Seed mult so chips×mult is non-zero; money steps bypass this entirely
+            if (hasChips) {
+                steps.push(makeScoringStep({
+                    event: EventType.ON_PIECE_CAPTURED,
+                    kind: 'mult',
+                    value: 1,
+                    animate: false,
+                    source,
+                }));
+            }
+
+            for (const e of effects) {
+                steps.push(makeScoringStep({
+                    event: EventType.ON_PIECE_CAPTURED,
+                    kind: e.kind,
+                    value: e.value,
+                    source,
+                }));
+            }
+
+            return steps;
         }
 
         // Returns ScoringStep[] for move type effects.

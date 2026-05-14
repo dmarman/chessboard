@@ -4,7 +4,7 @@ const { BalanceSimulator, HeuristicScenarioGenerator } = require('../sim/balance
 const ROOT = path.resolve(__dirname, '..');
 
 // Booster-pack standard weights — handy defaults to riff on.
-const STANDARD_ENHANCEMENT_WEIGHTS = { none: 60, glass: 8, metal: 8, gold: 8, rock: 6, stripes: 8, checkers: 6 };
+const STANDARD_ENHANCEMENT_WEIGHTS = { none: 60, glass: 8, metal: 8, gold: 8, rock: 6, red: 8, checkers: 6 };
 const STANDARD_EDITION_WEIGHTS     = { base: 82, shine: 4, holo: 3, poly: 1, neon: 1 };
 
 // Each scenario = { name, generatorOptions, runConfig }.

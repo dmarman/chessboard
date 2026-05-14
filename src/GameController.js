@@ -162,7 +162,7 @@ class GameController {
                 }
             }
 
-            if (this._chessGame.isGameOver()) return;
+            if (this._chessGame.isGameOver() || this._outcomeResolver.hasPending()) return;
 
             this._transitionTo('cpuMove');
             const results = await this._engine.search({ fen: this._chessGame.fen(), movetime: 100 });
@@ -170,7 +170,7 @@ class GameController {
         } finally {
             await this._animationCoordinator.done();
             this._transitionTo('resolveOutcome');
-            this._resolveOutcome();
+            await this._resolveOutcome();
         }
     }
 
@@ -181,7 +181,7 @@ class GameController {
             let results = await this._engine.search({ fen: this._chessGame.fen(), movetime: 10 });
             this._chessGame.move(results[0].move, PLAYER.AUTO);
 
-            if (this._chessGame.isGameOver()) return;
+            if (this._chessGame.isGameOver() || this._outcomeResolver.hasPending()) return;
 
             this._transitionTo('cpuMove');
             results = await this._engine.search({ fen: this._chessGame.fen(), movetime: 10 });
@@ -189,7 +189,7 @@ class GameController {
         } finally {
             await this._animationCoordinator.done();
             this._transitionTo('resolveOutcome');
-            this._resolveOutcome();
+            await this._resolveOutcome();
         }
     }
 
@@ -227,7 +227,7 @@ class GameController {
         this._inputController?.setEnabled(this._state === 'idle');
     }
 
-    _resolveOutcome() {
+    async _resolveOutcome() {
         const outcome = this._outcomeResolver.consume();
         if (!outcome) {
             this._transitionTo('idle');
@@ -242,7 +242,11 @@ class GameController {
         }
         const gameEndCtx = { playerColor: GameController.PLAYER_COLOR };
         const gameEndSteps = ScoringPipeline.buildGameEnd(this._chessboard.getState(), gameEndCtx, this._jokerRegistry);
-        this._scoreEngine.run(gameEndSteps);
+        if (gameEndSteps.length) {
+            const gameEndSnapshots = this._scoreEngine.run(gameEndSteps);
+            this._animationCoordinator.enqueueGameEnd(gameEndSnapshots);
+            await this._animationCoordinator.done();
+        }
 
         this._wallet.add(reward);
         this._hudUI.setMoney(this._wallet.balance);
@@ -254,22 +258,17 @@ class GameController {
     }
 
     _initChessSet() { // this function is alive for testing stuff, will be fixed in the future
-        for (const type of ['N', 'N', 'N', 'N', 'N', 'N']) {
+
+        for (const type of ['p','p','p','p','p','p','p','p','r','n','b','q','k','b','n','r']) {
             this._chessSet.addPiece(type, {
-                enhancement: 'gold',
+                
             });
         }
 
-        for (const type of ['P','P','P','P','P','P','P','P']) {
-            this._chessSet.addPiece(type, {
-                enhancement: 'stripes',
-            });
-        }
-
-        for (const type of ['P','P','P','P','P','P','P','P','p','p','p','p','p','p','p','p','r','n','b','q','k','b','n','r','R','N','B','Q','K','B','N','R']) {
+        for (const type of ['P','P','P','P','P','P','P','P','R','N','B','Q','K','B','N','R']) {
             this._chessSet.addPiece(type, {
                 //edition: 'holo',
-                //enhancement: 'glass',
+                //enhancement: 'golddigger',
             });
         }
     }
@@ -344,8 +343,14 @@ class GameController {
             if (player !== PLAYER.USER) {
                 // Opponent/engine turn: animate all physical moves (both pieces for castling),
                 // then let opponent powers react to the engine's move.
+                // If opponent captured a player piece with ON_PIECE_CAPTURED enhancement, score immediately.
+                const capturedPiece = primaryMove?.captured;
+                const capturedSnapshots = (capturedPiece?.color === GameController.PLAYER_COLOR)
+                    ? this._scoreEngine.run(Effects.stepsFromCapturedPiece(capturedPiece, primaryMove.capturedRow, primaryMove.capturedCol))
+                    : [];
                 for (const m of moves) {
-                    this._animationCoordinator.enqueue({ ...m, promotion: !!m.promotion, isOpponent: true, isCheckmate, isCheck, isCastle }, []);
+                    const snapshots = (m === primaryMove) ? capturedSnapshots : [];
+                    this._animationCoordinator.enqueue({ ...m, promotion: !!m.promotion, isOpponent: true, isCheckmate, isCheck, isCastle }, snapshots);
                 }
                 const cpuCtx = buildPowerContext({
                     chessGame: this._chessGame,

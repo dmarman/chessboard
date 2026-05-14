@@ -274,25 +274,10 @@
     pointer-events: none;
 }
 
-.stripes-overlay {
+.red-overlay {
     position: absolute; inset: 0;
     z-index: 2;
-    background:
-        repeating-linear-gradient(
-            -45deg,
-            #cc2200ee 0px,
-            #cc2200ee 6px,
-            transparent 6px,
-            transparent 10px,
-            #991100bb 10px,
-            #991100bb 14px,
-            transparent 14px,
-            transparent 20px,
-            #e63300cc 20px,
-            #e63300cc 22px,
-            transparent 22px,
-            transparent 30px
-        );
+    background: linear-gradient(345deg, #b7152b 0%, #d61731 100%);
     -webkit-mask-image: var(--sprite);
     mask-image: var(--sprite);
     -webkit-mask-size: contain;
@@ -303,8 +288,25 @@
     mask-position: center;
     pointer-events: none;
 }
-.piece-white .stripes-overlay { mix-blend-mode: multiply; }
-.piece-black .stripes-overlay { mix-blend-mode: overlay; }
+.piece-white .red-overlay { mix-blend-mode: multiply; }
+.piece-black .red-overlay { mix-blend-mode: overlay; }
+
+.blue-overlay {
+    position: absolute; inset: 0;
+    z-index: 2;
+    background: #028be7;
+    -webkit-mask-image: var(--sprite);
+    mask-image: var(--sprite);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    pointer-events: none;
+}
+.piece-white .blue-overlay { mix-blend-mode: multiply; }
+.piece-black .blue-overlay { mix-blend-mode: overlay; }
 
 .score-popup {
     position: absolute;

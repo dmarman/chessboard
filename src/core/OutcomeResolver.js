@@ -31,6 +31,11 @@ class OutcomeResolver {
         this._trigger('illegal');
     }
 
+    // True if an outcome has already been triggered (e.g. score win mid-turn).
+    hasPending() {
+        return this._pending !== null;
+    }
+
     // Returns pending outcome data and clears it, or null if no outcome pending.
     consume() {
         const outcome = this._pending;

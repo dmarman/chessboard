@@ -22,6 +22,7 @@
         INDEPENDENT:         'INDEPENDENT',
         ON_MOVE_SCORED_END:  'ON_MOVE_SCORED_END',
         ON_GAME_END:         'ON_GAME_END',
+        ON_PIECE_CAPTURED:   'ON_PIECE_CAPTURED',
     });
 
     // Ordered pipeline sequence used by ScoringPipeline.build() (per-move pipeline only).

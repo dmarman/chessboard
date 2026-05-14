@@ -224,13 +224,14 @@
             // Enhancements: gameplay property + visual. Single value per piece.
             // checkers + rock swap the sprite family; the others overlay onto standard sprites.
             enhancements: [
-                { value: 'none',     weight: 56 },
-                { value: 'glass',    weight: 8  },
-                { value: 'metal',    weight: 8  },
-                { value: 'gold',     weight: 8  },
-                { value: 'rock',     weight: 6  },
-                { value: 'stripes',  weight: 8  },
-                { value: 'checkers', weight: 6  },
+                { value: 'none',     weight: 60 },
+                { value: 'glass',    weight: 5  },
+                { value: 'metal',    weight: 5  },
+                { value: 'gold',     weight: 5  },
+                { value: 'rock',     weight: 5  },
+                { value: 'red',      weight: 5  },
+                { value: 'blue',     weight: 5  },
+                { value: 'lucky',    weight: 5  },
             ],
             // Editions: visual overlay applied on top of the enhancement. Single value per piece.
             editions: [

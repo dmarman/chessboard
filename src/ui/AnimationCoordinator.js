@@ -17,6 +17,12 @@
             if (!this._draining) this._drain();
         }
 
+        // Enqueues game-end scoring animations (alive pieces) — no board slide, no move sound.
+        enqueueGameEnd(snapshots) {
+            this._queue.push({ move: null, snapshots, isGameEnd: true });
+            if (!this._draining) this._drain();
+        }
+
         // Resolves when the queue is fully drained (or immediately if already idle)
         done() {
             if (!this._draining) return Promise.resolve();
@@ -45,18 +51,20 @@
             cb?.();
         }
 
-        async _process({ move, snapshots }, gen) {
-            this._soundManager?.play(this._moveSoundKey(move));
-            await this._boardUI.slideMove(move);
-            if (this._gen !== gen) return;
-
-            // Slide any bundled secondary pieces (castling rook) before scoring begins.
-            for (const secondary of move.secondaryMoves ?? []) {
-                await this._boardUI.slideMove(secondary);
+        async _process({ move, snapshots, isGameEnd }, gen) {
+            if (!isGameEnd) {
+                this._soundManager?.play(this._moveSoundKey(move));
+                await this._boardUI.slideMove(move);
                 if (this._gen !== gen) return;
+
+                // Slide any bundled secondary pieces (castling rook) before scoring begins.
+                for (const secondary of move.secondaryMoves ?? []) {
+                    await this._boardUI.slideMove(secondary);
+                    if (this._gen !== gen) return;
+                }
             }
 
-            if (snapshots.length > 0) {
+            if (snapshots.length > 0 && !isGameEnd) {
                 const labels = this._moveLabels(move);
                 if (labels.length) this._hudUI.showMoveLabel(labels);
             }
@@ -81,7 +89,7 @@
                     if ((step.source.type === 'joker' || step.source.type === 'edition') && this._jokerUI) {
                         fxAnim = this._jokerUI.animateEffect(step.source.id, null);
                     } else {
-                        fxAnim = this._boardUI.animatePieceEffect(move.toRow, move.toCol, null);
+                        fxAnim = this._boardUI.animatePieceEffect(move?.toRow, move?.toCol, null);
                     }
                 } else if ((step.source.type === 'joker' || step.source.type === 'edition') && this._jokerUI) {
                     fxAnim = this._jokerUI.animateEffect(step.source.id, step.value);
@@ -89,8 +97,8 @@
                     // Held-piece effects (ON_NON_MOVED_PIECE) carry their own square in source.
                     // Default to the moved piece's destination otherwise.
                     const hasSquare = step.source.row != null && step.source.col != null;
-                    const row = hasSquare ? step.source.row : move.toRow;
-                    const col = hasSquare ? step.source.col : move.toCol;
+                    const row = hasSquare ? step.source.row : move?.toRow;
+                    const col = hasSquare ? step.source.col : move?.toCol;
 
                     fxAnim = this._boardUI.animatePieceEffect(row, col, step.value, step.kind);
                 }
@@ -107,14 +115,16 @@
                 if (this._gen !== gen) return;
             }
 
-            // After scoring popups, animate any piece-expire (e.g. glass break) at destination.
-            const expired = snapshots.some(s => s.step.kind === 'expire' && s.step.source?.type === 'piece');
-            if (expired) {
-                await this._boardUI.removePieceAt(move.toRow, move.toCol);
-                if (this._gen !== gen) return;
-            }
+            if (!isGameEnd) {
+                // After scoring popups, animate any piece-expire (e.g. glass break) at destination.
+                const expired = snapshots.some(s => s.step.kind === 'expire' && s.step.source?.type === 'piece');
+                if (expired) {
+                    await this._boardUI.removePieceAt(move.toRow, move.toCol);
+                    if (this._gen !== gen) return;
+                }
 
-            this._boardUI.endMove(move.toRow, move.toCol);
+                this._boardUI.endMove(move.toRow, move.toCol);
+            }
         }
 
         _moveLabels(move) {

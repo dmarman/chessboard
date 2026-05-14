@@ -122,7 +122,7 @@ The code currently recognizes these modifiers:
 - `neon`
 - `glass`
 - `gold`
-- `stripes`
+- `red`
 
 For jokers specifically, only modifier effects present in `Effects.MODIFIER` matter, and joker edition scoring is applied automatically during `INDEPENDENT`.
 

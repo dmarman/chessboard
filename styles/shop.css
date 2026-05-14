@@ -217,4 +217,5 @@
 .pack-visual .glass-overlay  { mix-blend-mode: difference; }
 .pack-visual .neon-tint      { mix-blend-mode: lighten; }
 .pack-visual .metal-overlay  { mix-blend-mode: overlay; }
-.pack-visual .stripes-overlay { mix-blend-mode: overlay; }
+.pack-visual .red-overlay    { mix-blend-mode: overlay; }
+.pack-visual .blue-overlay   { mix-blend-mode: overlay; }

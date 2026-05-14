@@ -150,11 +150,11 @@
             const steps = [];
             const playerColor = ctx.playerColor;
 
-            for (const row of boardState) {
-                for (const piece of row) {
+            for (const [rowIdx, row] of boardState.entries()) {
+                for (const [colIdx, piece] of row.entries()) {
                     if (!piece) continue;
                     if (piece.color !== playerColor) continue;
-                    steps.push(...Effects.stepsFromAliveAtGameEnd(piece));
+                    steps.push(...Effects.stepsFromAliveAtGameEnd(piece, rowIdx, colIdx));
                 }
             }
 

@@ -20,7 +20,7 @@ Piece naming:
 
 
 
-
+https://chatgpt.com/c/69fbc025-1ff8-832d-8f04-7685d4663e40
 
 https://chatgpt.com/c/6a052842-8024-8326-a9ea-baa3204d3085
 descriptive nicknames (“the monster bishop”)

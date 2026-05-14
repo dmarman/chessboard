@@ -2,7 +2,7 @@
 // so values like rock-chips, holo-mult, checkers-xmult can be tuned at the lowest level.
 //
 // Three tables:
-//   1. MOVED   — Effects.stepsFromPiece            (piece base + ENHANCEMENT + EDITION)
+//   1. MOVED   — Effects.stepsFromPiece (piece base + ENHANCEMENT + EDITION) × move type
 //   2. HELD    — Effects.stepsFromNonMovedPiece    (PIECE_HELD + ENHANCEMENT_HELD: metal)
 //   3. ALIVE   — Effects.stepsFromAliveAtGameEnd   (PIECE_ALIVE + ENHANCEMENT_ALIVE: gold)
 
@@ -10,33 +10,22 @@ const path = require('path');
 const { loadGameRuntime } = require('../sim/balance-simulator');
 
 const TYPES = ['p', 'n', 'b', 'r', 'q', 'k'];
-const ENHANCEMENTS = ['none', 'metal', 'glass', 'stripes', 'checkers', 'rock', 'gold'];
+const ENHANCEMENTS = ['none', 'metal', 'glass', 'red', 'blue', 'checkers', 'rock', 'gold', 'lucky'];
 const EDITIONS = ['base', 'holo', 'poly', 'shine', 'neon'];
+const MOVE_TYPES = ['quiet', 'capture', 'check'];
 
-function scoreSteps(ScoreEngine, steps) {
+function scoreSteps(ScoreEngine, Effects, moveType, pieceSteps) {
     const engine = new ScoreEngine();
     let money = 0;
     engine.on('money', ({ amount }) => { money += amount; });
-    // Coerce expire ('value: null') so engine still emits a final snapshot when only expire fires.
-    const numericSteps = steps.filter(s => typeof s.value === 'number' || s.kind === 'money');
-    engine.run(numericSteps);
+    const moveSteps = Effects.stepsFromMoveType(moveType);
+    const allSteps = [...moveSteps, ...pieceSteps].filter(s => typeof s.value === 'number' || s.kind === 'money');
+    engine.run(allSteps);
     return {
-        chips: numericSteps.filter(s => s.kind === 'chips').reduce((sum, s) => sum + s.value, 0),
-        mult:  numericSteps.filter(s => s.kind === 'mult').reduce((sum, s) => sum + s.value, 0),
-        xmult: numericSteps.filter(s => s.kind === 'xmult').reduce((sum, p) => sum * p.value, 1),
+        chips: pieceSteps.filter(s => s.kind === 'chips').reduce((sum, s) => sum + s.value, 0),
+        mult:  pieceSteps.filter(s => s.kind === 'mult').reduce((sum, s) => sum + s.value, 0),
+        xmult: pieceSteps.filter(s => s.kind === 'xmult').reduce((sum, p) => sum * p.value, 1),
         score: engine.score,
-        money,
-    };
-}
-
-function rowFor(label, ScoreEngine, steps) {
-    const { chips, mult, xmult, score, money } = scoreSteps(ScoreEngine, steps);
-    return {
-        variant: label,
-        chips,
-        addMult: mult,
-        xmult: round2(xmult),
-        score: round2(score),
         money,
     };
 }
@@ -68,8 +57,13 @@ function main() {
         for (const type of TYPES) {
             for (const enhancement of ENHANCEMENTS) {
                 for (const edition of EDITIONS) {
-                    const steps = Effects.stepsFromPiece({ id: 'calib', type, enhancement, edition, name: null });
-                    moved.push({ type, enhancement, edition, ...rowFor(`${type}+${enhancement}+${edition}`, ScoreEngine, steps) });
+                    const pieceSteps = Effects.stepsFromPiece({ id: 'calib', type, enhancement, edition, name: null });
+                    const scores = {};
+                    for (const mt of MOVE_TYPES) {
+                        scores[mt] = scoreSteps(ScoreEngine, Effects, mt, pieceSteps).score;
+                    }
+                    const { chips, mult, xmult } = scoreSteps(ScoreEngine, Effects, 'quiet', pieceSteps);
+                    moved.push({ type, enhancement, edition, variant: `${type}+${enhancement}+${edition}`, chips, addMult: mult, xmult: round2(xmult), ...Object.fromEntries(MOVE_TYPES.map(mt => [mt, round2(scores[mt])])) });
                 }
             }
         }
@@ -81,7 +75,8 @@ function main() {
                 if (!steps.length) continue;
                 // Prepend base type chips so score = type_chips * held_xmult (e.g. rook+metal: 5*5=25)
                 const typeSteps = Effects.stepsFromPiece({ id: 'calib', type, enhancement: 'none', edition: 'base', name: null });
-                held.push({ type, enhancement, ...rowFor(`${type}+${enhancement}`, ScoreEngine, [...typeSteps, ...steps]) });
+                const { chips, mult, xmult, score, money } = scoreSteps(ScoreEngine, Effects, 'quiet', [...typeSteps, ...steps]);
+                held.push({ type, enhancement, variant: `${type}+${enhancement}`, chips, addMult: mult, xmult: round2(xmult), score: round2(score), money });
             }
         }
 
@@ -92,21 +87,26 @@ function main() {
                 if (!steps.length) continue;
                 // Prepend base type chips so score reflects type value even in alive phase
                 const typeSteps = Effects.stepsFromPiece({ id: 'calib', type, enhancement: 'none', edition: 'base', name: null });
-                alive.push({ type, enhancement, ...rowFor(`${type}+${enhancement}`, ScoreEngine, [...typeSteps, ...steps]) });
+                const { chips, mult, xmult, score, money } = scoreSteps(ScoreEngine, Effects, 'quiet', [...typeSteps, ...steps]);
+                alive.push({ type, enhancement, variant: `${type}+${enhancement}`, chips, addMult: mult, xmult: round2(xmult), score: round2(score), money });
             }
         }
 
-        console.log('\n=== MOVED (Effects.stepsFromPiece) ===');
-        console.log('Filter rows in code with --type=p / --enh=metal / etc., or sort by score.');
+        console.log('\n=== MOVED (piece base + enhancement + edition) by move type ===');
+        console.log('Columns: quiet / capture / check scores. Filter metal+gold (phase-specific).');
         const movedFiltered = moved.filter(r => r.enhancement !== 'metal' && r.enhancement !== 'gold');
         const onlyInteresting = process.argv.includes('--all')
             ? movedFiltered
             : movedFiltered.filter(r => r.enhancement !== 'none' || r.edition !== 'base');
-        const sortedMoved = onlyInteresting.sort((a, b) => b.score - a.score);
-        console.table(sortedMoved);
+        const sortedMoved = onlyInteresting.sort((a, b) => b.check - a.check);
+        console.table(sortedMoved.map(({ variant, chips, addMult, xmult, quiet, capture, check }) =>
+            ({ variant, chips, addMult, xmult, quiet, capture, check })));
 
-        console.log('\n--- MOVED score chart ---');
-        asciiBarChart(sortedMoved);
+        console.log('\n--- MOVED score chart (all move types) ---');
+        const expandedMoved = sortedMoved
+            .flatMap(r => MOVE_TYPES.map(mt => ({ variant: `${r.variant}+${mt}`, score: r[mt] })))
+            .sort((a, b) => b.score - a.score);
+        asciiBarChart(expandedMoved);
 
         console.log('\n=== HELD (Effects.stepsFromNonMovedPiece) ===');
         console.table(held.sort((a, b) => b.score - a.score));
@@ -115,7 +115,9 @@ function main() {
         console.table(alive.sort((a, b) => b.money - a.money || b.score - a.score));
 
         console.log('\nBaseline rows (enhancement=none, edition=base) — pure type chips:');
-        console.table(moved.filter(r => r.enhancement === 'none' && r.edition === 'base'));
+        console.table(moved.filter(r => r.enhancement === 'none' && r.edition === 'base')
+            .map(({ variant, chips, addMult, xmult, quiet, capture, check }) =>
+                ({ variant, chips, addMult, xmult, quiet, capture, check })));
     } finally {
         Math.random = origRandom;
     }
