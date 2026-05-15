@@ -10,9 +10,11 @@
             this._shakeMs = options.shakeMs ?? 700;
             this._renderPiece = options.renderPiece ?? (() => '');
             this._orientation = options.orientation ?? 'w';
+            this._tiltDeg = options.tiltDeg ?? 20;
             this._dragEnabled = options.dragEnabled ?? true;
             this._dragThreshold = options.dragThreshold ?? 5;
             this._dragState = null;
+            this._tiltedPieceEl = null;
             this.pieceElements = new Map();
             this.squareElements = new Map(); // algebraic ("e4") -> square <div>
             this.piecesLayer = null;
@@ -32,6 +34,9 @@
 
         get shakeMs() { return this._shakeMs; }
         set shakeMs(v) { this._shakeMs = v; this._updateStyles(); }
+
+        get tiltDeg() { return this._tiltDeg; }
+        set tiltDeg(v) { this._tiltDeg = v; this._updateStyles(); }
 
         get dragEnabled() { return this._dragEnabled; }
         setDragEnabled(v) {
@@ -71,6 +76,13 @@
                     height: ${s}px;
                     transition: transform ${this._transitionMs}ms ease-in-out;
                     pointer-events: none;
+                    perspective: 300px;
+                }
+                .chessboard-ui .piece-tilt {
+                    width: 100%;
+                    height: 100%;
+                    transform: rotateX(calc(var(--tilt-y, 0) * -${this._tiltDeg}deg)) rotateY(calc(var(--tilt-x, 0) * ${this._tiltDeg}deg));
+                    transition: transform 0.15s ease-out;
                 }
                 body.chessboard-dragging, body.chessboard-dragging * { cursor: grabbing !important; }
             `;
@@ -117,6 +129,22 @@
             });
             squaresLayer.addEventListener('mouseleave', () => {
                 this.emit('squareHover', { square: null });
+                this._clearCurrentTilt();
+            });
+
+            squaresLayer.addEventListener('mousemove', (event) => {
+                if (this._dragState) return;
+                const sq = event.target.closest('.chess-square');
+                if (!sq) { this._clearCurrentTilt(); return; }
+                const pieceEl = this._getPieceElAtSquare(sq.dataset.square);
+                if (!pieceEl) { this._clearCurrentTilt(); return; }
+                if (pieceEl !== this._tiltedPieceEl) this._clearCurrentTilt();
+                const rect = sq.getBoundingClientRect();
+                const ratioX = (event.clientX - (rect.left + rect.width / 2)) / (rect.width / 2);
+                const ratioY = (event.clientY - (rect.top + rect.height / 2)) / (rect.height / 2);
+                pieceEl.style.setProperty('--tilt-x', ratioX);
+                pieceEl.style.setProperty('--tilt-y', ratioY);
+                this._tiltedPieceEl = pieceEl;
             });
 
             this.piecesLayer = document.createElement('div');
@@ -186,6 +214,7 @@
             const pieceCenterClientY = rect.top + vRow * this.squareSize + half;
 
             // Lift piece out of float, kill transition so it tracks the cursor exactly.
+            this._clearCurrentTilt();
             pieceEl._floatAnimation?.cancel();
             pieceEl._floatAnimation = null;
             pieceEl.style.transition = 'none';
@@ -334,13 +363,30 @@
             return this._orientation === 'b' ? [7 - row, 7 - col] : [row, col];
         }
 
+        _getPieceElAtSquare(square) {
+            const sqEl = this.squareElements.get(square);
+            if (!sqEl) return null;
+            return this.pieceElements.get(this._posKey(parseInt(sqEl.dataset.row, 10), parseInt(sqEl.dataset.col, 10))) ?? null;
+        }
+
+        _clearCurrentTilt() {
+            if (!this._tiltedPieceEl) return;
+            this._tiltedPieceEl.style.setProperty('--tilt-x', 0);
+            this._tiltedPieceEl.style.setProperty('--tilt-y', 0);
+            this._tiltedPieceEl = null;
+        }
+
         createPieceElement(piece, row, col) {
             const [vRow, vCol] = this._toVisual(row, col);
             const el = document.createElement('div');
             el.className = 'piece';
             el.style.top = `${vRow * this.squareSize}px`;
             el.style.left = `${vCol * this.squareSize}px`;
-            el.innerHTML = this._renderPiece(piece);
+            const tiltEl = document.createElement('div');
+            tiltEl.className = 'piece-tilt';
+            tiltEl.innerHTML = this._renderPiece(piece);
+            el.appendChild(tiltEl);
+            el._tiltEl = tiltEl;
             this.piecesLayer.appendChild(el);
             this.pieceElements.set(this._posKey(row, col), el);
             this._setSquareHasPiece(row, col, true);
@@ -493,7 +539,7 @@
         }
 
         _handleCaptureAndPromotion(el, piece, promotion) {
-            if (promotion) el.innerHTML = this._renderPiece(piece);
+            if (promotion) el._tiltEl.innerHTML = this._renderPiece(piece);
         }
 
         _squareToPixelCenter(square) {
@@ -525,6 +571,10 @@
             svg.innerHTML = `<defs><marker id="${markerId}" markerWidth="2" markerHeight="2.5" refX="1.25" refY="1.25" orient="auto"><path fill="${color}" d="M.3 0 2 1.25.3 2.5z"/></marker></defs><path d="M${x1} ${y1} L${ex} ${ey}" fill="none" opacity=".65" stroke="${color}" stroke-width="${strokeWidth}" marker-end="url(#${markerId})"/>`;
             this.boardElement.appendChild(svg);
             return svg;
+        }
+
+        getSquareElement(square) {
+            return this.squareElements.get(square) ?? null;
         }
 
         clearArrows() {

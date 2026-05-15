@@ -11,7 +11,7 @@ const STANDARD_EDITION_WEIGHTS     = { base: 82, shine: 4, holo: 3, poly: 1, neo
 // Same seed across scenarios → same chess move plan → diff isolates modifier/joker impact.
 const SHARED = {
     games: 250,
-    turnsPerGame: 12,
+    turnsPerGame: 5,
     seed: 1337,
     tournament: 1,
     opponentSlot: 'BOSS',

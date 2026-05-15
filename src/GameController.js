@@ -267,8 +267,8 @@ class GameController {
 
         for (const type of ['P','P','P','P','P','P','P','P','R','N','B','Q','K','B','N','R']) {
             this._chessSet.addPiece(type, {
-                //edition: 'holo',
-                //enhancement: 'gold',
+                edition: 'holo',
+                // enhancement: 'gold',
             });
         }
     }
@@ -402,6 +402,15 @@ class GameController {
             }
             // User just moved — if CPU is now in checkmate, player won by chess
             this._outcomeResolver.notifyTurn({ isCheckmate, player }, PLAYER.USER);
+        });
+
+        this._chessBoardUI.on('squareHover', ({ square }) => {
+            if (!square) { EffectDescriberUI.hide(); return; }
+            const piece = this._chessboard.getPieceAt(square);
+            if (!piece) { EffectDescriberUI.hide(); return; }
+            const el = this._chessBoardUI.getSquareElement(square);
+            if (!el) return;
+            EffectDescriberUI.showAt(el, { type: 'piece', piece: piece.toSnapshot() });
         });
 
         this._scoreEngine.on('reset', data => this._hudUI.reset(data));
