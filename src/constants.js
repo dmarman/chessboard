@@ -16,6 +16,7 @@ const THEME = {
     scoreChips:           '#3b82f6',
     scoreMult:            '#ef4444',
     gold:                 '#ffcd00',
+    darkGold:             '#9d4300',
 
     // UI panels (shared across modals)
     panelBg:              '#1a1a2e',
@@ -44,10 +45,10 @@ const THEME = {
     primaryBorder:        'rgba(124, 77, 255, 0.4)',
 
     // Rarity
-    rarityCommon:         '#aaaaaa',
-    rarityUncommon:       '#4caf50',
+    rarityCommon:         '#4caf50',
+    rarityUncommon:       '#2196f3',
     rarityUncommonHover:  '#388e3c',
-    rarityRare:           '#2196f3',
+    rarityRare:           '#f87171',
     rarityLegendary:      '#ff9800',
 
     // HUD

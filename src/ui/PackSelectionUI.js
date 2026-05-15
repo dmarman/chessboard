@@ -86,6 +86,17 @@
             `;
 
             card.addEventListener('click', () => this._onCardClick(index, card));
+
+            EffectDescriberUI.attach(card, {
+                type: 'piece',
+                piece: {
+                    type:        pieceData.type,
+                    enhancement: pieceData.enhancement ?? 'none',
+                    edition:     pieceData.edition ?? 'base',
+                    name:        typeName,
+                },
+            });
+
             return card;
         }
 

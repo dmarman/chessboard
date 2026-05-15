@@ -76,13 +76,24 @@
                     height: ${s}px;
                     transition: transform ${this._transitionMs}ms ease-in-out;
                     pointer-events: none;
+                }
+                .chessboard-ui .piece-perspective {
+                    width: 100%;
+                    height: 100%;
                     perspective: 300px;
+                }
+                .chessboard-ui .piece-idle-tilt {
+                    width: 100%;
+                    height: 100%;
+                    transform-style: preserve-3d;
+                    transform: rotateX(calc(var(--idle-tilt-y, 0) * -${this._tiltDeg}deg)) rotateY(calc(var(--idle-tilt-x, 0) * ${this._tiltDeg}deg));
                 }
                 .chessboard-ui .piece-tilt {
                     width: 100%;
                     height: 100%;
+                    transform-style: preserve-3d;
                     transform: rotateX(calc(var(--tilt-y, 0) * -${this._tiltDeg}deg)) rotateY(calc(var(--tilt-x, 0) * ${this._tiltDeg}deg));
-                    transition: transform 0.15s ease-out;
+                    transition: transform 0.08s linear;
                 }
                 body.chessboard-dragging, body.chessboard-dragging * { cursor: grabbing !important; }
             `;
@@ -134,17 +145,35 @@
 
             squaresLayer.addEventListener('mousemove', (event) => {
                 if (this._dragState) return;
-                const sq = event.target.closest('.chess-square');
-                if (!sq) { this._clearCurrentTilt(); return; }
-                const pieceEl = this._getPieceElAtSquare(sq.dataset.square);
-                if (!pieceEl) { this._clearCurrentTilt(); return; }
-                if (pieceEl !== this._tiltedPieceEl) this._clearCurrentTilt();
+                // Stickiness: keep tilting the current piece if cursor is still inside its square
+                // (with a Y margin for float overshoot). Using a *stable* rect — not the piece's
+                // transformed rect — avoids hit-test bouncing as the piece floats up/down, and
+                // skips an extra layout read per mousemove.
+                const floatMargin = 8;
+                let pieceEl = null;
+                let sq = null;
+                if (this._tiltedPieceEl && this._tiltedSquareEl) {
+                    const r = this._tiltedSquareEl.getBoundingClientRect();
+                    if (event.clientX >= r.left && event.clientX <= r.right &&
+                        event.clientY >= r.top - floatMargin && event.clientY <= r.bottom + floatMargin) {
+                        pieceEl = this._tiltedPieceEl;
+                        sq = this._tiltedSquareEl;
+                    }
+                }
+                if (!pieceEl) {
+                    sq = event.target.closest('.chess-square');
+                    if (!sq) { this._clearCurrentTilt(); return; }
+                    pieceEl = this._getPieceElAtSquare(sq.dataset.square);
+                    if (!pieceEl) { this._clearCurrentTilt(); return; }
+                    if (pieceEl !== this._tiltedPieceEl) this._clearCurrentTilt();
+                }
                 const rect = sq.getBoundingClientRect();
                 const ratioX = (event.clientX - (rect.left + rect.width / 2)) / (rect.width / 2);
                 const ratioY = (event.clientY - (rect.top + rect.height / 2)) / (rect.height / 2);
                 pieceEl.style.setProperty('--tilt-x', ratioX);
                 pieceEl.style.setProperty('--tilt-y', ratioY);
                 this._tiltedPieceEl = pieceEl;
+                this._tiltedSquareEl = sq;
             });
 
             this.piecesLayer = document.createElement('div');
@@ -217,6 +246,8 @@
             this._clearCurrentTilt();
             pieceEl._floatAnimation?.cancel();
             pieceEl._floatAnimation = null;
+            pieceEl._idleTiltAnimation?.cancel();
+            pieceEl._idleTiltAnimation = null;
             pieceEl.style.transition = 'none';
             pieceEl.style.zIndex = '1000';
 
@@ -374,6 +405,7 @@
             this._tiltedPieceEl.style.setProperty('--tilt-x', 0);
             this._tiltedPieceEl.style.setProperty('--tilt-y', 0);
             this._tiltedPieceEl = null;
+            this._tiltedSquareEl = null;
         }
 
         createPieceElement(piece, row, col) {
@@ -382,10 +414,16 @@
             el.className = 'piece';
             el.style.top = `${vRow * this.squareSize}px`;
             el.style.left = `${vCol * this.squareSize}px`;
+            const perspectiveEl = document.createElement('div');
+            perspectiveEl.className = 'piece-perspective';
+            const idleTiltEl = document.createElement('div');
+            idleTiltEl.className = 'piece-idle-tilt';
             const tiltEl = document.createElement('div');
             tiltEl.className = 'piece-tilt';
             tiltEl.innerHTML = this._renderPiece(piece);
-            el.appendChild(tiltEl);
+            idleTiltEl.appendChild(tiltEl);
+            perspectiveEl.appendChild(idleTiltEl);
+            el.appendChild(perspectiveEl);
             el._tiltEl = tiltEl;
             this.piecesLayer.appendChild(el);
             this.pieceElements.set(this._posKey(row, col), el);
@@ -406,6 +444,8 @@
         async _animateSlide(el, dx, dy, toRow, toCol) {
             el._floatAnimation?.cancel();
             el._floatAnimation = null;
+            el._idleTiltAnimation?.cancel();
+            el._idleTiltAnimation = null;
             el.style.zIndex = '1000';
             await el.animate([
                 { transform: 'translate(0px, 0px)' },
@@ -496,12 +536,21 @@
 
         _animateFloat(el) {
             el._floatAnimation?.cancel();
+            el._idleTiltAnimation?.cancel();
             const delay = -(Math.random() * 5000);
             el._floatAnimation = el.animate([
                 { filter: `drop-shadow(4px 4px 3px ${THEME.pieceShadow})`, transform: 'translateY(0px)' },
                 { filter: `drop-shadow(4px 8px 3px ${THEME.pieceShadow})`, transform: 'translateY(-4px)', offset: 0.5 },
                 { filter: `drop-shadow(4px 4px 3px ${THEME.pieceShadow})`, transform: 'translateY(0px)' },
             ], { duration: 5000, easing: 'ease-in-out', iterations: Infinity, delay });
+            const tiltDelay = -(Math.random() * 8000);
+            el._idleTiltAnimation = el.animate([
+                { '--idle-tilt-x':  '0',    '--idle-tilt-y':  '0'    },
+                { '--idle-tilt-x':  '0.12', '--idle-tilt-y': '-0.08', offset: 0.25 },
+                { '--idle-tilt-x': '-0.10', '--idle-tilt-y':  '0.12', offset: 0.5  },
+                { '--idle-tilt-x':  '0.06', '--idle-tilt-y':  '0.09', offset: 0.75 },
+                { '--idle-tilt-x':  '0',    '--idle-tilt-y':  '0'    },
+            ], { duration: 8000, easing: 'ease-in-out', iterations: Infinity, delay: tiltDelay });
             el.querySelectorAll('[data-sync-delay]').forEach(child => {
                 child.style.animationDelay = `${delay}ms`;
             });
@@ -516,6 +565,8 @@
             this._setSquareHasPiece(row, col, false);
             el._floatAnimation?.cancel();
             el._floatAnimation = null;
+            el._idleTiltAnimation?.cancel();
+            el._idleTiltAnimation = null;
             el.style.zIndex = '999';
             await el.animate([
                 { transform: 'scale(1)    rotate(0deg)',   opacity: 1, filter: 'brightness(1)' },
@@ -604,6 +655,8 @@
                 this._skipNextSlide = false;
                 el._floatAnimation?.cancel();
                 el._floatAnimation = null;
+                el._idleTiltAnimation?.cancel();
+                el._idleTiltAnimation = null;
                 el.style.transition = 'none';
                 el.style.transform = '';
                 el.style.top = `${vToRow * this.squareSize}px`;

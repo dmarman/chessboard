@@ -8,30 +8,52 @@
     /* filter: drop-shadow(2px 4px 6px black); */
 }
 
+@property --tilt-x {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 0;
+}
+@property --tilt-y {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 0;
+}
+@property --idle-tilt-x {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 0;
+}
+@property --idle-tilt-y {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 0;
+}
+
 .piece-white .holo-overlay { mix-blend-mode: multiply; }
 .piece-black .holo-overlay { mix-blend-mode: color; }
 .holo-overlay {
     position: absolute; inset: 0;
     z-index: 4;
+    /* gradient angle and stop positions shift with tilt — inspired by the ratio-x technique */
     background-image: linear-gradient(
-        140deg,
-        hsl(186deg 89% 65%) 0%,
-        hsl(207deg 84% 70%) 15%,
-        hsl(227deg 80% 75%) 22%,
-        hsl(248deg 77% 80%) 28%,
-        hsl(268deg 72% 85%) 33%,
-        hsl(248deg 77% 78%) 37%,
-        hsl(229deg 82% 72%) 42%,
-        hsl(209deg 86% 66%) 46%,
-        hsl(189deg 91% 60%) 50%,
-        hsl(209deg 90% 65%) 54%,
-        hsl(230deg 89% 69%) 58%,
-        hsl(250deg 88% 74%) 63%,
-        hsl(271deg 87% 79%) 67%,
-        hsl(250deg 87% 76%) 72%,
-        hsl(230deg 86% 74%) 78%,
-        hsl(210deg 85% 71%) 85%,
-        hsl(189deg 85% 69%) 100%
+        calc(140deg + (var(--tilt-x) + var(--idle-tilt-x)) * 25deg),
+        hsl(186deg 89% 65%) calc(0%   - (var(--tilt-x) + var(--idle-tilt-x)) * 20%),
+        hsl(207deg 84% 70%) calc(15%  - (var(--tilt-x) + var(--idle-tilt-x)) * 20%),
+        hsl(227deg 80% 75%) calc(22%  - (var(--tilt-x) + var(--idle-tilt-x)) * 20%),
+        hsl(248deg 77% 80%) calc(28%  - (var(--tilt-x) + var(--idle-tilt-x)) * 20%),
+        hsl(268deg 72% 85%) calc(33%  - (var(--tilt-x) + var(--idle-tilt-x)) * 20%),
+        hsl(248deg 77% 78%) calc(37%  - (var(--tilt-x) + var(--idle-tilt-x)) * 20%),
+        hsl(229deg 82% 72%) calc(42%  - (var(--tilt-x) + var(--idle-tilt-x)) * 20%),
+        hsl(209deg 86% 66%) calc(46%  - (var(--tilt-x) + var(--idle-tilt-x)) * 20%),
+        hsl(189deg 91% 60%) calc(50%  - (var(--tilt-x) + var(--idle-tilt-x)) * 20%),
+        hsl(209deg 90% 65%) calc(54%  - (var(--tilt-x) + var(--idle-tilt-x)) * 20%),
+        hsl(230deg 89% 69%) calc(58%  - (var(--tilt-x) + var(--idle-tilt-x)) * 20%),
+        hsl(250deg 88% 74%) calc(63%  - (var(--tilt-x) + var(--idle-tilt-x)) * 20%),
+        hsl(271deg 87% 79%) calc(67%  - (var(--tilt-x) + var(--idle-tilt-x)) * 20%),
+        hsl(250deg 87% 76%) calc(72%  - (var(--tilt-x) + var(--idle-tilt-x)) * 20%),
+        hsl(230deg 86% 74%) calc(78%  - (var(--tilt-x) + var(--idle-tilt-x)) * 20%),
+        hsl(210deg 85% 71%) calc(85%  - (var(--tilt-x) + var(--idle-tilt-x)) * 20%),
+        hsl(189deg 85% 69%) calc(100% - (var(--tilt-x) + var(--idle-tilt-x)) * 20%)
     );
     -webkit-mask-image: var(--sprite);
     mask-image: var(--sprite);
@@ -42,13 +64,12 @@
     -webkit-mask-position: center;
     mask-position: center;
     background-size: 200% 200%;
-    animation: holo 5s ease-in-out infinite;
+    background-position:
+        calc(50% + (var(--tilt-x) + var(--idle-tilt-x)) * 35%)
+        calc(50% + (var(--tilt-y) + var(--idle-tilt-y)) * 35%);
+    filter: brightness(1.2) saturate(1.5);
+    transition: background-position 0.15s ease-out, filter 0.15s ease-out;
     pointer-events: none;
-}
-@keyframes holo {
-    0%   { background-position: 0% 0%;     filter: brightness(1.2) saturate(1.5); }
-    50%  { background-position: 100% 100%; filter: brightness(1.5) saturate(1.5); }
-    100% { background-position: 0% 0%;     filter: brightness(1.2) saturate(1.5); }
 }
 
 .piece-white .poly-overlay { mix-blend-mode: color; }
@@ -57,7 +78,7 @@
     position: absolute; inset: 0;
     z-index: 4;
     background-image: linear-gradient(
-        30deg,
+        calc(30deg + (var(--tilt-x) + var(--idle-tilt-x)) * 25deg),
         hsl(240deg 100% 50%) 2%,
         hsl(336deg 100% 50%) 35%,
         hsl(108deg 100% 50%) 47%,
@@ -73,6 +94,11 @@
     mask-repeat: no-repeat;
     -webkit-mask-position: center;
     mask-position: center;
+    background-size: 200% 200%;
+    background-position:
+        calc(50% + (var(--tilt-x) + var(--idle-tilt-x)) * 35%)
+        calc(50% + (var(--tilt-y) + var(--idle-tilt-y)) * 35%);
+    transition: background-position 0.15s ease-out;
     pointer-events: none;
 }
 
@@ -80,7 +106,10 @@
 .piece-black .gold-overlay {
     opacity: 0.8;
     mix-blend-mode: normal;
-    background-image: url(/textures/gold.png), linear-gradient(140deg, #1e0e0d 0, #cb9b51 22%, #ae6b28 30%, #b6a238 45%, #9f9a55 50%, #776b2a 55%, #9b975e 65%, #cb9b51 78%, #462523 100%);
+    background-image: url(/textures/gold.png), linear-gradient(
+        calc(140deg + (var(--tilt-x) + var(--idle-tilt-x)) * 25deg),
+        #1e0e0d 0, #cb9b51 22%, #ae6b28 30%, #b6a238 45%, #9f9a55 50%, #776b2a 55%, #9b975e 65%, #cb9b51 78%, #462523 100%
+    );
 }
 .gold-overlay {
     position: absolute; inset: 0;
@@ -88,7 +117,7 @@
     background-image:
         url(/textures/gold.png),
         linear-gradient(
-            140deg,
+            calc(140deg + (var(--tilt-x) + var(--idle-tilt-x)) * 25deg),
             #462523 0,
             #cb9b51 22%,
             #f6f2c0 30%,
@@ -109,16 +138,15 @@
     -webkit-mask-position: center;
     mask-position: center;
     background-size: cover, 200% 200%;
-    animation: gold 5s ease-in-out infinite;
+    background-position:
+        center,
+        calc(50% + (var(--tilt-x) + var(--idle-tilt-x)) * 35%)
+        calc(50% + (var(--tilt-y) + var(--idle-tilt-y)) * 35%);
+    filter: brightness(1) saturate(1);
+    transition: background-position 0.15s ease-out;
     pointer-events: none;
 }
 .glass-tint .gold-overlay { opacity: 0.5; }
-
-@keyframes gold {
-    0%   { background-position: 0% 0%;     filter: brightness(1) saturate(1); }
-    50%  { background-position: 100% 100%; filter: brightness(1) saturate(1); }
-    100% { background-position: 0% 0%;     filter: brightness(1) saturate(1); }
-}
 
 @keyframes neonPulse {
     0%, 100% { filter: drop-shadow(0 0 4px var(--color-piece-neon)) }
@@ -180,25 +208,21 @@
     pointer-events: none;
 }
 
-@keyframes shine {
-    0%   { background-position: 30% 0; }
-    50%  { background-position: 80% 0; }
-    100% { background-position: 30% 0; }
-}
 .piece-white .shine-overlay { mix-blend-mode: hard-light; }
 .piece-black .shine-overlay { mix-blend-mode: overlay; }
 .shine-overlay {
     position: absolute; inset: 0;
     z-index: 4;
     background-image: linear-gradient(
-        -130deg,
+        calc(-130deg + (var(--tilt-x) + var(--idle-tilt-x)) * 20deg),
         transparent 45%,
         rgba(255,255,255,1) 50%,
         transparent 55%
     );
     background-color: var(--color-piece-shine);
     background-size: 300% 100%;
-    background-position: -150% 0;
+    /* shine strip tracks tilt-x: center at rest, sweeps across on tilt */
+    background-position: calc(50% + (var(--tilt-x) + var(--idle-tilt-x)) * 50%) 0;
     -webkit-mask-image: var(--sprite);
     mask-image: var(--sprite);
     -webkit-mask-size: contain;
@@ -207,7 +231,7 @@
     mask-repeat: no-repeat;
     -webkit-mask-position: center;
     mask-position: center;
-    animation: shine 5s ease-in-out infinite;
+    transition: background-position 0.15s ease-out;
     pointer-events: none;
 }
 
@@ -216,14 +240,10 @@
     initial-value: 0deg;
     inherits: false;
 }
-@keyframes metalShimmer {
-    0%   { --metal-angle: 0deg; }
-    50%  { --metal-angle: 18deg; }
-    100% { --metal-angle: 0deg; }
-}
 .piece-white .metal-overlay { mix-blend-mode: multiply; }
 .piece-black .metal-overlay { mix-blend-mode: overlay; }
 .metal-overlay {
+    --metal-angle: calc((var(--tilt-x) + var(--idle-tilt-x)) * 18deg);
     position: absolute; inset: 0;
     z-index: 2;
     background: conic-gradient(from var(--metal-angle) at 50% 50%,
@@ -270,7 +290,6 @@
     -webkit-mask-position: center;
     mask-position: center;
     filter: saturate(3) brightness(1);
-    animation: metalShimmer 5s ease-in-out infinite;
     pointer-events: none;
 }
 

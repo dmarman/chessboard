@@ -74,11 +74,11 @@
             card.className = `shop-card shop-card--${def.rarity}${canAfford ? '' : ' shop-card--cannot-afford'}`;
 
             card.innerHTML = `
-                <div class="shop-card__rarity">${def.rarity}</div>
                 <div class="shop-card__name">${def.name}</div>
-                <div class="shop-card__desc">${def.description}</div>
                 <div class="shop-card__price">$${def.price}</div>
             `;
+
+            EffectDescriberUI.attach(card, { type: 'joker', def });
 
             if (canAfford) {
                 card.addEventListener('click', () => {
@@ -98,7 +98,7 @@
             const structClasses = allClasses.filter(c => !ShopUI.PACK_OVERLAY_CLASSES.has(c));
             const overlayClasses = allClasses.filter(c => ShopUI.PACK_OVERLAY_CLASSES.has(c));
 
-            const spriteVar    = `--sprite:url(/sprites/packs/pack_base.png)`;
+            const spriteVar    = `--sprite:url(/sprites/packs/square_pack_base.png)`;
             const categoryLabel = def.category.charAt(0).toUpperCase() + def.category.slice(1);
             const sizeLabel     = def.size !== 'normal' ? def.size.charAt(0).toUpperCase() + def.size.slice(1) : '';
             const overlayDivs  = overlayClasses
@@ -107,7 +107,7 @@
 
             card.innerHTML = `
                 <div class="pack-visual ${structClasses.join(' ')}">
-                    <img class="pack-visual__base" src="/sprites/packs/pack_base.png" alt="" />
+                    <img class="pack-visual__base" src="/sprites/packs/square_pack_base.png" alt="" />
                     <div class="pack-visual__label" data-category="${def.category}" data-size="${def.size}">
                         ${sizeLabel ? `<span class="pack-label__size">${sizeLabel}</span>` : ''}
                         <span class="pack-label__category">${categoryLabel}</span>
@@ -115,9 +115,10 @@
                     </div>
                     ${overlayDivs}
                 </div>
-                <div class="shop-card__desc">${def.description}</div>
                 <div class="shop-card__price">$${def.price}</div>
             `;
+
+            EffectDescriberUI.attach(card, { type: 'pack', def });
 
             if (canAfford) {
                 card.addEventListener('click', () => {

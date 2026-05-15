@@ -26,10 +26,11 @@
 }
 
 .shop-title {
-    font-size: 24px;
+font-size: 64px;
     color: var(--color-gold);
     text-transform: uppercase;
-    letter-spacing: 2px;
+    letter-spacing: -2px;
+    text-shadow: 3px 3px var(--color-dark-gold);
 }
 
 .shop-slots {
@@ -79,7 +80,7 @@
 
 .shop-card__name {
     font-size: 24px;
-    color: var(--color-gold);
+    color: #fff;
     text-align: center;
 }
 
@@ -174,12 +175,11 @@
 }
 
 .pack-label__category {
-    font-size: 15px;
+    font-size: 14px;
     text-transform: uppercase;
     color: var(--color-pack-neon);
     mix-blend-mode: overlay;
     text-shadow: 1px 1px #000000;
-    letter-spacing: -1px;
 }
 
 .pack-label__size {

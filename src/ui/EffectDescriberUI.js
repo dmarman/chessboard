@@ -10,6 +10,7 @@
 
     class EffectDescriberUI {
         static _tooltip = null;
+        static _pinned  = true;
         static _listeners = new WeakMap(); // element -> { enter, leave }
 
         // Build and mount the singleton tooltip element.
@@ -49,7 +50,7 @@
             const tooltip = EffectDescriberUI._tooltip;
             tooltip.innerHTML = EffectDescriberUI._buildHTML(data);
 
-            // Position above the anchor; flip below if clipped by viewport top.
+            // Position below the anchor; flip above if clipped by viewport bottom.
             tooltip.classList.remove('effect-tooltip--visible');
             tooltip.style.visibility = 'hidden';
             tooltip.classList.add('effect-tooltip--visible');
@@ -58,15 +59,16 @@
             const tRect  = tooltip.getBoundingClientRect();
             const gap    = 8;
 
-            let top  = rect.top - tRect.height - gap + window.scrollY;
+            let top  = rect.bottom + gap + window.scrollY;
             let left = rect.left + rect.width / 2 - tRect.width / 2 + window.scrollX;
 
-            // Flip below if above viewport
-            if (top < window.scrollY + gap) {
-                top = rect.bottom + gap + window.scrollY;
-                tooltip.classList.add('effect-tooltip--below');
-            } else {
+            // Flip above if below viewport
+            const viewH = document.documentElement.clientHeight;
+            if (rect.bottom + gap + tRect.height > viewH - gap) {
+                top = rect.top - tRect.height - gap + window.scrollY;
                 tooltip.classList.remove('effect-tooltip--below');
+            } else {
+                tooltip.classList.add('effect-tooltip--below');
             }
 
             // Clamp horizontally within viewport
@@ -79,6 +81,7 @@
         }
 
         static _hide() {
+            if (EffectDescriberUI._pinned) return;
             EffectDescriberUI._tooltip?.classList.remove('effect-tooltip--visible');
         }
 
@@ -99,6 +102,7 @@
                 case 'joker':    return EffectDescriberUI._jokerHTML(data.def);
                 case 'opponent': return EffectDescriberUI._opponentHTML(data.def);
                 case 'moveType': return EffectDescriberUI._moveTypeHTML(data.moveType);
+                case 'pack':     return EffectDescriberUI._packHTML(data.def);
                 default:         return '';
             }
         }
@@ -109,14 +113,15 @@
 
             const rows = lines.map(({ label, text }) =>
                 `<div class="effect-tooltip__row">
-                    <span class="effect-tooltip__label">${label}</span>
                     <span class="effect-tooltip__value">${text}</span>
                 </div>`
             ).join('');
 
             return `
                 ${title ? `<div class="effect-tooltip__title">${title}</div>` : ''}
-                ${rows || '<div class="effect-tooltip__empty">No effects</div>'}
+                <div class="effect-tooltip__rows">${rows || '<div class="effect-tooltip__empty">No effects</div>'}</div>
+                ${enhancement != 'none' ? `<div class="effect-tooltip__tag effect-tooltip__tag--enhancement">${enhancement} card</div>` : ''}
+                ${edition != 'base' ? `<div class="effect-tooltip__tag effect-tooltip__tag--edition">${({ holo: 'Holographic', poly: 'Polychrome', shine: 'Polished' })[edition] ?? edition}</div>` : ''}
             `;
         }
 
@@ -124,9 +129,9 @@
             if (!def) return '';
             return `
                 <div class="effect-tooltip__title">${def.name ?? ''}</div>
-                <div class="effect-tooltip__row">
+                <div class="effect-tooltip__rows"><div class="effect-tooltip__row">
                     <span class="effect-tooltip__value">${EffectDescriber.forJoker(def)}</span>
-                </div>
+                </div></div>
                 ${def.rarity ? `<div class="effect-tooltip__rarity effect-tooltip__rarity--${def.rarity}">${def.rarity}</div>` : ''}
             `;
         }
@@ -135,10 +140,10 @@
             if (!def) return '';
             return `
                 <div class="effect-tooltip__title">${def.name ?? ''}</div>
-                <div class="effect-tooltip__row">
+                <div class="effect-tooltip__rows"><div class="effect-tooltip__row">
                     <span class="effect-tooltip__value">${EffectDescriber.forOpponent(def)}</span>
                 </div>
-                ${def.multiplier != null ? `<div class="effect-tooltip__row"><span class="effect-tooltip__label">Score ×</span><span class="effect-tooltip__value">${def.multiplier}</span></div>` : ''}
+                ${def.multiplier != null ? `<div class="effect-tooltip__row"><span class="effect-tooltip__label">Score ×</span><span class="effect-tooltip__value">${def.multiplier}</span></div>` : ''}</div>
             `;
         }
 
@@ -146,8 +151,18 @@
             if (!moveType) return '';
             return `
                 <div class="effect-tooltip__title">${moveType}</div>
-                <div class="effect-tooltip__row">
+                <div class="effect-tooltip__rows"><div class="effect-tooltip__row">
                     <span class="effect-tooltip__value">${EffectDescriber.forMoveType(moveType)}</span>
+                </div></div>
+            `;
+        }
+
+        static _packHTML(def) {
+            if (!def) return '';
+            return `
+                <div class="effect-tooltip__title">${def.name ?? ''}</div>
+                <div class="effect-tooltip__row">
+                    <span class="effect-tooltip__value">${def.description ?? ''}</span>
                 </div>
             `;
         }

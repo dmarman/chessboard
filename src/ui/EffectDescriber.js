@@ -11,15 +11,29 @@
     //   EffectDescriber.forEffectArray([...])      → generic array → text
 
     class EffectDescriber {
-        // Converts a single effect object { kind, value, chance } to a short string.
+        // Wraps op+value in a colored span. isNegative forces danger color regardless of kind.
+        static _valueSpan(op, value, color, bgColor = null, textColor = null) {
+            const bg    = bgColor    ? `background:${bgColor};padding:0 4px;border-radius:6px;` : '';
+            const fg    = textColor  ? `color:${textColor};`  : `color:${color};`;
+            return `<span style="${fg}${bg}font-weight:600;">${op}${value}</span>`;
+        }
+
+        // Converts a single effect object { kind, value, chance } to an HTML string.
         static _effectToken({ kind, value, chance }) {
-            const pct = chance !== undefined ? ` (${Math.round(chance * 100)}% chance)` : '';
+            const pct = chance !== undefined
+                ? ` <span style="color:${THEME.textMuted};font-size:0.85em;">(${Math.round(chance * 100)}%)</span>`
+                : '';
             switch (kind) {
-                case 'chips':     return `+${value} chips${pct}`;
-                case 'mult':      return `+${value} mult${pct}`;
-                case 'xmult':     return `×${value} mult${pct}`;
-                case 'money':     return `+$${value}${pct}`;
-                case 'expire':    return `${chance !== undefined ? `${Math.round(chance * 100)}% shatter on move` : 'expires after move'}`;
+                case 'chips':
+                    return `${EffectDescriber._valueSpan('+', `${value}`, THEME.scoreChips)} chips ${pct}`;
+                case 'mult':
+                    return `${EffectDescriber._valueSpan('+', `${value}`, THEME.scoreMult)} mult ${pct}`;
+                case 'xmult':
+                    return `${EffectDescriber._valueSpan('×', `${value}`, null, THEME.scoreMult, '#fff')} xmult ${pct}`;
+                case 'money':
+                    return `${EffectDescriber._valueSpan('+$', value, THEME.gold)}${pct}`;
+                case 'expire':
+                    return `<span style="color:${THEME.rarityUncommonHover};">${`${Math.round(chance * 100)}%`}</span> shatter on move`;
                 case 'retrigger': return 'retrigger scored piece';
                 case 'message':   return '';
                 default:          return `${kind}: ${value}${pct}`;
@@ -75,7 +89,10 @@
             if (!key) return '';
             const def = Effects.MOVE_TYPE[key.toLowerCase()];
             if (!def) return key;
-            return `+${def.chips} chips · +${def.mult} mult`;
+            return [
+                EffectDescriber._valueSpan('+', `${def.chips} chips`, THEME.scoreChips),
+                EffectDescriber._valueSpan('+', `${def.mult} mult`,   THEME.scoreMult),
+            ].join(' · ');
         }
 
         // Describes a piece type base value by letter (e.g. 'p', 'n', 'q').
@@ -104,15 +121,18 @@
         static summaryForPiece({ type, enhancement, edition }) {
             const lines = [];
 
-            const typeText = EffectDescriber.forPieceType(type);
-            if (typeText) lines.push({ label: 'Base', text: typeText });
+            const hasEnhancement = enhancement && enhancement.toLowerCase() !== 'none';
+            const hasEdition = edition && edition.toLowerCase() !== 'base';
 
-            if (enhancement) {
+            const typeText = EffectDescriber.forPieceType(type);
+            if (typeText) lines.push({ label: 'piece', text: typeText });
+
+            if (hasEnhancement) {
                 const enhText = EffectDescriber.forEnhancement(enhancement);
                 if (enhText) lines.push({ label: enhancement, text: enhText });
             }
 
-            if (edition) {
+            if (hasEdition) {
                 const edText = EffectDescriber.forEdition(edition);
                 if (edText) lines.push({ label: edition, text: edText });
             }

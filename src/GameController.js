@@ -267,7 +267,14 @@ class GameController {
 
         for (const type of ['P','P','P','P','P','P','P','P','R','N','B','Q','K','B','N','R']) {
             this._chessSet.addPiece(type, {
-                edition: 'holo',
+                //edition: 'holo',
+                //enhancement: 'metal',
+            });
+        }
+
+        for (const type of ['P','P']) {
+            this._chessSet.addPiece(type, {
+                // edition: 'poly',
                 // enhancement: 'gold',
             });
         }
@@ -408,6 +415,7 @@ class GameController {
             if (!square) { EffectDescriberUI.hide(); return; }
             const piece = this._chessboard.getPieceAt(square);
             if (!piece) { EffectDescriberUI.hide(); return; }
+            if (piece.color() !== GameController.PLAYER_COLOR) { EffectDescriberUI.hide(); return; }
             const el = this._chessBoardUI.getSquareElement(square);
             if (!el) return;
             EffectDescriberUI.showAt(el, { type: 'piece', piece: piece.toSnapshot() });
