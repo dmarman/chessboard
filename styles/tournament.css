@@ -13,8 +13,8 @@
 }
 
 .tournament-modal {
-    background: #1a1a2e;
-    border: 2px solid #3a3a5c;
+    background: var(--color-panel-bg);
+    border: 2px solid var(--color-panel-border);
     border-radius: 8px;
     padding: 32px 40px;
     display: flex;
@@ -27,7 +27,7 @@
 
 .tournament-title {
     font-size: 24px;
-    color: #e0c97f;
+    color: var(--color-text-gold);
     text-transform: uppercase;
     letter-spacing: 2px;
 }
@@ -41,8 +41,8 @@
 }
 
 .tournament-card {
-    background: #12122a;
-    border: 2px solid #2e2e50;
+    background: var(--color-panel-inner-bg);
+    border: 2px solid var(--color-panel-inner-border);
     border-radius: 6px;
     padding: 20px 16px;
     width: 200px;
@@ -54,12 +54,12 @@
 }
 
 .tournament-card:hover {
-    border-color: #e05555;
+    border-color: var(--color-danger);
 }
 
 .tournament-card__name {
     font-size: 18px;
-    color: #e05555;
+    color: var(--color-danger);
     text-transform: uppercase;
     letter-spacing: 1px;
     text-align: center;
@@ -67,7 +67,7 @@
 
 .tournament-card__desc {
     font-size: 13px;
-    color: #9090bb;
+    color: var(--color-text-secondary);
     text-align: center;
     line-height: 1.4;
     flex: 1;
@@ -75,25 +75,25 @@
 
 .tournament-card__target {
     font-size: 13px;
-    color: #aaaacc;
+    color: var(--color-text-muted);
 }
 
 .tournament-card__target-value {
-    color: #e05555;
+    color: var(--color-danger);
     font-size: 15px;
     font-weight: bold;
 }
 
 .tournament-card__reward {
     font-size: 16px;
-    color: #f0c040;
+    color: var(--color-coins);
     letter-spacing: 2px;
     margin-top: 6px;
 }
 
 .tournament-card__btn {
     margin-top: 8px;
-    background: #e05555;
+    background: var(--color-danger);
     color: #fff;
     border: none;
     border-radius: 4px;
@@ -106,7 +106,7 @@
 }
 
 .tournament-card__btn:hover {
-    background: #c03838;
+    background: var(--color-danger-hover);
 }
 
 .tournament-card--locked {
@@ -115,14 +115,14 @@
 }
 
 .tournament-card--locked:hover {
-    border-color: #2e2e50;
+    border-color: var(--color-panel-inner-border);
 }
 
 .tournament-card--locked .tournament-card__btn {
-    background: #444466;
+    background: var(--color-panel-disabled-bg);
     cursor: not-allowed;
 }
 
 .tournament-card--locked .tournament-card__btn:hover {
-    background: #444466;
+    background: var(--color-panel-disabled-bg);
 }

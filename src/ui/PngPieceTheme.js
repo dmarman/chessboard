@@ -6,19 +6,18 @@
             const s = p => base + p;
             this._spriteFamilies = {
                 standard: {
-                    'p': s('standard/bp.png'),
-                    'b': s('standard/bb.png'),
-                    'r': s('standard/br.png'),
-                    'n': s('standard/bn.png'),
-                    'q': s('standard/bq.png'),
-                    'k': s('standard/bk.png'),
-
-                    'P': s('standard/wp.png'),
-                    'B': s('standard/wb.png'),
-                    'R': s('standard/wr.png'),
-                    'N': s('standard/wn.png'),
-                    'Q': s('standard/wq.png'),
-                    'K': s('standard/wk.png'),
+                    'p': s('vector/bp.png'),
+                    'b': s('vector/bb.png'),
+                    'r': s('vector/br.png'),
+                    'n': s('vector/bn.png'),
+                    'q': s('vector/bq.png'),
+                    'k': s('vector/bk.png'),
+                    'P': s('vector/wp.png'),
+                    'B': s('vector/wb.png'),
+                    'R': s('vector/wr.png'),
+                    'N': s('vector/wn.png'),
+                    'Q': s('vector/wq.png'),
+                    'K': s('vector/wk.png'),
                 },
                 rock: {
                     'p': s('rock.png'),

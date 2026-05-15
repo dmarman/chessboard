@@ -3,7 +3,35 @@
   src: url('../fonts/m6x11.ttf') format('truetype');
 }
 
-body { font-family: 'm6x11', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; -webkit-font-smoothing: none; text-rendering: optimizeSpeed; }
+@font-face {
+  font-family: 'typoquick';
+  src: url('../fonts/Fredoka.ttf') format('truetype');
+}
+
+
+
+@font-face {
+  font-family: 'MorePerfectDOSVGA';
+  src: url('../fonts/MorePerfectDOSVGA.ttf') format('truetype');
+}
+
+body {
+  font-family: 'typoquick',
+  sans-serif; display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+  /* -webkit-font-smoothing: none;
+  text-rendering: optimizeSpeed; */
+  font-weight: 600;
+}
+
+body img {
+  /* image-rendering: pixelated; */
+}
+
+
 button, input, select, textarea { font: inherit; }
 
 #bg-canvas {

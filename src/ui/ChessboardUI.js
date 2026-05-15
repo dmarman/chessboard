@@ -48,20 +48,20 @@
                 .chessboard-ui .chess-square.light { background: ${this._lightColor}; }
                 .chessboard-ui .chess-square.dark { background: ${this._darkColor}; }
                 .chessboard-ui .chess-square.has-piece { cursor: grab; }
-                .chessboard-ui .chess-square.selected { box-shadow: inset 0 0 0 9999px rgba(255, 220, 60, 0.40); }
+                .chessboard-ui .chess-square.selected { box-shadow: inset 0 0 0 9999px ${THEME.squareSelected}; }
                 .chessboard-ui .chess-square.legal-move::after {
                     content: ''; position: absolute; left: 50%; top: 50%;
                     width: ${dot}px; height: ${dot}px; margin-left: -${dot/2}px; margin-top: -${dot/2}px;
-                    border-radius: 50%; background: #7575757d; mix-blend-mode: difference; pointer-events: none; z-index: 5;
+                    border-radius: 50%; background: ${THEME.legalMoveDot}; mix-blend-mode: difference; pointer-events: none; z-index: 5;
                 }
                 .chessboard-ui .chess-square.legal-move-capture::after {
                     content: ''; position: absolute; inset: 0;
-                    border: ${ringBorder}px solid rgba(0, 0, 0, 0.32); border-radius: 50%;
+                    border: ${ringBorder}px solid ${THEME.legalMoveCapture}; border-radius: 50%;
                     box-sizing: border-box; pointer-events: none; z-index: 5;
                 }
                 .chessboard-ui .chess-square.hover-target,
                 .chessboard-ui .chess-square.drag-origin {
-                    outline: 3px solid rgba(255, 255, 255, 0.7);
+                    outline: 3px solid ${THEME.squareHover};
                     outline-offset: -3px;
                     z-index: 6;
                 }
@@ -414,12 +414,12 @@
 
         _animateShake(el) {
             return el.animate([
-                { transform: 'scale(1)    rotate(0)',     filter: 'drop-shadow(4px 4px 3px rgba(0,0,0,0.6))' },
-                { transform: 'scale(1.8)  rotate(10deg)', filter: 'drop-shadow(4px 8px 3px rgba(0,0,0,0.6))', offset: 0.2 },
+                { transform: 'scale(1)    rotate(0)',     filter: `drop-shadow(4px 4px 3px ${THEME.pieceShadow})` },
+                { transform: 'scale(1.8)  rotate(10deg)', filter: `drop-shadow(4px 8px 3px ${THEME.pieceShadow})`, offset: 0.2 },
                 { transform: 'scale(0.7)  rotate(-5deg)', offset: 0.4 },
-                { transform: 'scale(1.2)  rotate(2deg)',  filter: 'drop-shadow(4px 8px 3px rgba(0,0,0,0.6))',  offset: 0.6 },
+                { transform: 'scale(1.2)  rotate(2deg)',  filter: `drop-shadow(4px 8px 3px ${THEME.pieceShadow})`,  offset: 0.6 },
                 { transform: 'scale(0.9)  rotate(-1deg)', offset: 0.8 },
-                { transform: 'scale(1)    rotate(0)',     filter: 'drop-shadow(4px 4px 3px rgba(0,0,0,0.6))' },
+                { transform: 'scale(1)    rotate(0)',     filter: `drop-shadow(4px 4px 3px ${THEME.pieceShadow})` },
             ], { duration: this._shakeMs, easing: 'ease-out' }).finished;
         }
 
@@ -427,9 +427,9 @@
             el._floatAnimation?.cancel();
             const delay = -(Math.random() * 5000);
             el._floatAnimation = el.animate([
-                { filter: 'drop-shadow(4px 4px 3px rgba(0,0,0,0.6))', transform: 'translateY(0px)' },
-                { filter: 'drop-shadow(4px 8px 3px rgba(0,0,0,0.6))', transform: 'translateY(-4px)', offset: 0.5 },
-                { filter: 'drop-shadow(4px 4px 3px rgba(0,0,0,0.6))', transform: 'translateY(0px)' },
+                { filter: `drop-shadow(4px 4px 3px ${THEME.pieceShadow})`, transform: 'translateY(0px)' },
+                { filter: `drop-shadow(4px 8px 3px ${THEME.pieceShadow})`, transform: 'translateY(-4px)', offset: 0.5 },
+                { filter: `drop-shadow(4px 4px 3px ${THEME.pieceShadow})`, transform: 'translateY(0px)' },
             ], { duration: 5000, easing: 'ease-in-out', iterations: Infinity, delay });
             el.querySelectorAll('[data-sync-delay]').forEach(child => {
                 child.style.animationDelay = `${delay}ms`;

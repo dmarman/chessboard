@@ -37,13 +37,13 @@
                     <div class="hud-progress-section">
                         <div class="hud-section">
                             <div class="hud-progress-col">
-                                <span class="hud-label">Tournament</span>
+                                <span class="hud-label">Arena</span>
                                 <span class="hud-progress-tournament">1/8</span>
                             </div>
                         </div>
                         <div class="hud-section">
                             <div class="hud-progress-col">
-                                <span class="hud-label">Round</span>
+                                <span class="hud-label">Game</span>
                                 <span class="hud-progress-round">1/3</span>
                             </div>
                         </div>

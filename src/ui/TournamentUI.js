@@ -48,7 +48,7 @@
             card.innerHTML = `
                 <div class="tournament-card__name">${opp.name}</div>
                 <div class="tournament-card__desc">${opp.description}</div>
-                <div class="tournament-card__target">Beat: <span class="tournament-card__target-value">${opp.scoreAtLeast}</span></div>
+                <div class="tournament-card__target">Score at least: <span class="tournament-card__target-value">${opp.scoreAtLeast}</span></div>
                 <div class="tournament-card__reward">${'$'.repeat(opp.reward)}</div>
                 <button class="tournament-card__btn" ${opp.isActive ? '' : 'disabled'}>Fight</button>
             `;

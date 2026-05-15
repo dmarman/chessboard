@@ -268,7 +268,7 @@ class GameController {
         for (const type of ['P','P','P','P','P','P','P','P','R','N','B','Q','K','B','N','R']) {
             this._chessSet.addPiece(type, {
                 //edition: 'holo',
-                //enhancement: 'golddigger',
+                //enhancement: 'gold',
             });
         }
     }

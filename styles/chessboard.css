@@ -1,4 +1,4 @@
-.chessboard-ui { border: 3px solid #797979ad; display: inline-block; position: relative; }
+.chessboard-ui { border: 3px solid var(--color-board-border); display: inline-block; position: relative; }
 .chessboard-ui .chess-row { display: flex; }
 .chessboard-ui .piece img { width: 100%; height: 100%; object-fit: contain; }
 .piece-modifier-wrapper { position: relative; width: 100%; height: 100%; }
@@ -121,8 +121,8 @@
 }
 
 @keyframes neonPulse {
-    0%, 100% { filter: drop-shadow(0 0 4px #00ff00) }
-    50%       { filter: drop-shadow(0 0 8px #00ff00) }
+    0%, 100% { filter: drop-shadow(0 0 4px var(--color-piece-neon)) }
+    50%       { filter: drop-shadow(0 0 8px var(--color-piece-neon)) }
 }
 .piece-modifier-wrapper.neon img {
     animation: neonPulse 5s ease-in-out infinite;
@@ -130,7 +130,7 @@
 .neon-tint {
     position: absolute; inset: 0;
     z-index: 5;
-    background: #00ff00;
+    background: var(--color-piece-neon);
     -webkit-mask-image: var(--sprite);
     mask-image: var(--sprite);
     -webkit-mask-size: contain;
@@ -196,7 +196,7 @@
         rgba(255,255,255,1) 50%,
         transparent 55%
     );
-    background-color: #8d8d8d;
+    background-color: var(--color-piece-shine);
     background-size: 300% 100%;
     background-position: -150% 0;
     -webkit-mask-image: var(--sprite);
@@ -277,7 +277,7 @@
 .red-overlay {
     position: absolute; inset: 0;
     z-index: 2;
-    background: linear-gradient(345deg, #b7152b 0%, #d61731 100%);
+    background: linear-gradient(345deg, var(--color-piece-red-a) 0%, var(--color-piece-red-b) 100%);
     -webkit-mask-image: var(--sprite);
     mask-image: var(--sprite);
     -webkit-mask-size: contain;
@@ -294,7 +294,7 @@
 .blue-overlay {
     position: absolute; inset: 0;
     z-index: 2;
-    background: #028be7;
+    background: var(--color-piece-blue);
     -webkit-mask-image: var(--sprite);
     mask-image: var(--sprite);
     -webkit-mask-size: contain;
@@ -325,12 +325,13 @@
     /* centered on anchor: translate to center, then rotate 45° */
     transform: translate(-50%, -50%) rotate(45deg) scale(0);
     opacity: 0;
+    border-radius: 8px;
 }
 
-.score-popup--chips  .score-popup__diamond { background: #3b82f6; }
-.score-popup--mult   .score-popup__diamond { background: #ef4444; }
-.score-popup--xmult  .score-popup__diamond { background: #ef4444; }
-.score-popup--money  .score-popup__diamond { background: #f59e0b; }
+.score-popup--chips  .score-popup__diamond { background: var(--color-score-chips); }
+.score-popup--mult   .score-popup__diamond { background: var(--color-score-mult); }
+.score-popup--xmult  .score-popup__diamond { background: var(--color-score-mult); }
+.score-popup--money  .score-popup__diamond { background: var(--color-score-money); }
 
 .score-popup__char {
     display: inline-block;

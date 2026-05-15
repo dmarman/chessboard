@@ -5,7 +5,7 @@
     width: 300px;
     align-self: stretch;
     margin: 0px 64px;
-    background-color: #333;
+    background-color: var(--color-hud-bg);
     justify-content: center;
     border-left: 3px red solid;
     border-right: 3px red solid;
@@ -21,9 +21,9 @@
 #hud .hud-section {
     display: flex;
     flex-direction: row;
-    background-color: #222;
+    background-color: var(--color-hud-dark);
     border-radius: 8px;
-    box-shadow: 0px 4px #111;
+    box-shadow: 0px 4px var(--color-hud-darker);
 }
 
 #hud .hud-chip-score-card {
@@ -32,7 +32,7 @@
 
 #hud .hud-label {
     font-size: 24px;
-    color: #eee;
+    color: var(--color-text-light);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -47,7 +47,7 @@
     color: #fff;
     text-align: center;
     width: 100%;
-    background: #333;
+    background: var(--color-hud-bg);
     margin: 8px;
     margin-right: 10px;
     padding: 8px;
@@ -67,10 +67,10 @@
     display: flex;
     width: 100%;
     justify-content: end;
-    background-color: #00b4ff;
+    background-color: var(--color-hud-blue);
     border-radius: 4px;
     padding: 8px;
-    box-shadow: 0px 4px #0044ff;
+    box-shadow: 0px 4px var(--color-hud-blue-shadow);
 }
 
 #hud .hud-row-x {
@@ -87,12 +87,12 @@
     background-color: red;
     border-radius: 4px;
     padding: 8px;
-    box-shadow: 0px 4px #880101;
+    box-shadow: 0px 4px var(--color-hud-red-shadow);
 }
 
 #hud .hud-sub-label {
     font-size: 13px;
-    color: #7a7aaa;
+    color: var(--color-hud-sub-label);
 }
 
 #hud .hud-sub-value {
@@ -138,8 +138,8 @@
 
 #hud .hud-money-value {
     font-size: 48px;
-    color: #f0c040;
-    background: #333;
+    color: var(--color-coins);
+    background: var(--color-hud-bg);
     width: 100%;
     border-radius: 4px;
     padding: 8px;
@@ -167,7 +167,7 @@
     font-size: 48px;
     display: flex;
     align-items: center;
-    background-color: #333;
+    background-color: var(--color-hud-bg);
     border-radius: 4px;
     width: 100%;
     justify-content: center;
@@ -175,7 +175,7 @@
 }
 
 #hud .hud-progress-current {
-    color: #f5d76e;
+    color: var(--color-gold-text);
 }
 
 #hud .hud-progress-total {

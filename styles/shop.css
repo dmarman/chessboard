@@ -13,8 +13,8 @@
 }
 
 .shop-modal {
-    background: #1a1a2e;
-    border: 2px solid #3a3a5c;
+    background: var(--color-panel-bg);
+    border: 2px solid var(--color-panel-border);
     border-radius: 8px;
     padding: 32px 40px;
     display: flex;
@@ -27,7 +27,7 @@
 
 .shop-title {
     font-size: 24px;
-    color: #e0c97f;
+    color: var(--color-text-gold);
     text-transform: uppercase;
     letter-spacing: 2px;
 }
@@ -67,19 +67,19 @@
     background: rgba(255,255,255,0.05);
 }
 
-.shop-card--common    .shop-card__rarity { color: #aaaaaa; border: 1px solid #aaaaaa; }
-.shop-card--uncommon  .shop-card__rarity { color: #4caf50; border: 1px solid #4caf50; }
-.shop-card--rare      .shop-card__rarity { color: #2196f3; border: 1px solid #2196f3; }
-.shop-card--legendary .shop-card__rarity { color: #ff9800; border: 1px solid #ff9800; }
+.shop-card--common    .shop-card__rarity { color: var(--color-rarity-common); border: 1px solid var(--color-rarity-common); }
+.shop-card--uncommon  .shop-card__rarity { color: var(--color-rarity-uncommon); border: 1px solid var(--color-rarity-uncommon); }
+.shop-card--rare      .shop-card__rarity { color: var(--color-rarity-rare); border: 1px solid var(--color-rarity-rare); }
+.shop-card--legendary .shop-card__rarity { color: var(--color-rarity-legendary); border: 1px solid var(--color-rarity-legendary); }
 
-.shop-card--common:hover    { border-color: #aaaaaa; }
-.shop-card--uncommon:hover  { border-color: #4caf50; }
-.shop-card--rare:hover      { border-color: #2196f3; }
-.shop-card--legendary:hover { border-color: #ff9800; }
+.shop-card--common:hover    { border-color: var(--color-rarity-common); }
+.shop-card--uncommon:hover  { border-color: var(--color-rarity-uncommon); }
+.shop-card--rare:hover      { border-color: var(--color-rarity-rare); }
+.shop-card--legendary:hover { border-color: var(--color-rarity-legendary); }
 
 .shop-card__name {
     font-size: 24px;
-    color: #e0c97f;
+    color: var(--color-text-gold);
     text-align: center;
 }
 
@@ -93,7 +93,7 @@
 
 .shop-card__price {
     font-size: 32px;
-    color: #f0c040;
+    color: var(--color-coins);
     letter-spacing: 1px;
 }
 
@@ -115,26 +115,26 @@
 }
 
 .shop-reroll-btn {
-    background: #7c4dff;
+    background: var(--color-primary);
     color: #fff;
 }
 
 .shop-reroll-btn:hover:not(:disabled) {
-    background: #5c35cc;
+    background: var(--color-primary-hover);
 }
 
 .shop-reroll-btn:disabled {
-    background: #444466;
+    background: var(--color-panel-disabled-bg);
     cursor: not-allowed;
 }
 
 .shop-leave-btn {
-    background: #444466;
-    color: #aaaacc;
+    background: var(--color-panel-disabled-bg);
+    color: var(--color-text-muted);
 }
 
 .shop-leave-btn:hover {
-    background: #555588;
+    background: var(--color-panel-disabled-hover);
 }
 
 .shop-pack-slots {
@@ -174,11 +174,12 @@
 }
 
 .pack-label__category {
-    font-size: 19px;
+    font-size: 15px;
     text-transform: uppercase;
-    color: #94ff00;
+    color: var(--color-pack-neon);
     mix-blend-mode: overlay;
     text-shadow: 1px 1px #000000;
+    letter-spacing: -1px;
 }
 
 .pack-label__size {
@@ -196,9 +197,9 @@
 .pack-label__pack {
     letter-spacing: 5px;
     font-size: 13px;
-    color: #c6b9da;
+    color: var(--color-pack-purple);
     -webkit-text-stroke-width: 1px;
-    -webkit-text-stroke-color: #ff1414;
+    -webkit-text-stroke-color: var(--color-pack-stroke);
 }
 
 /* Per-category shiny CSS effects — populated when design PNGs are added */

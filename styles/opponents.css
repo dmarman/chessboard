@@ -16,7 +16,7 @@
 
 .opponent-name {
     font-size: 32px;
-    color: #e05555;
+    color: var(--color-danger);
     text-align: center;
     text-transform: capitalize;
     width: 100%;
@@ -28,13 +28,13 @@
 
 .opponent-desc {
     font-size: 14px;
-    color: #9090bb;
+    color: var(--color-text-secondary);
     text-align: center;
     line-height: 1.3;
 }
 
 .opponent-params {
-    background-color: #222;
+    background-color: var(--color-hud-dark);
     padding: 8px 24px;
     padding-top: 12px;
     border-radius: 8px;
@@ -47,7 +47,7 @@
 
 .opponent-target {
     font-size: 14px;
-    color: #eee;
+    color: var(--color-text-light);
     text-align: center;
     display: flex;
     flex-direction: column;
@@ -55,18 +55,18 @@
 }
 
 .opponent-target-value {
-    color: #e05555;
+    color: var(--color-danger);
     font-size: 48px;
 }
 
 .opponent-reward {
-    color: #eee;
+    color: var(--color-text-light);
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
 .opponent-reward-value {
-    color: #f0c040;
+    color: var(--color-coins);
     font-size: 24px;
 }

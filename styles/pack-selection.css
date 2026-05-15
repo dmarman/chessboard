@@ -13,8 +13,8 @@
 }
 
 .pack-selection-modal {
-    background: #1a1a2e;
-    border: 2px solid #3a3a5c;
+    background: var(--color-panel-bg);
+    border: 2px solid var(--color-panel-border);
     border-radius: 8px;
     padding: 32px 40px;
     display: flex;
@@ -34,7 +34,7 @@
 
 .pack-selection-title {
     font-size: 22px;
-    color: #e0c97f;
+    color: var(--color-text-gold);
     text-transform: uppercase;
     letter-spacing: 2px;
     margin: 0;
@@ -42,7 +42,7 @@
 
 .pack-selection-desc {
     font-size: 14px;
-    color: #aaaacc;
+    color: var(--color-text-muted);
     margin: 0;
     letter-spacing: 0.5px;
 }
@@ -56,8 +56,8 @@
 }
 
 .pack-piece-card {
-    background: #12122a;
-    border: 2px solid #2e2e50;
+    background: var(--color-panel-inner-bg);
+    border: 2px solid var(--color-panel-inner-border);
     border-radius: 6px;
     padding: 20px 16px;
     width: 140px;
@@ -71,14 +71,14 @@
 }
 
 .pack-piece-card:hover {
-    border-color: #7c4dff;
+    border-color: var(--color-primary);
     transform: translateY(-2px);
 }
 
 .pack-piece-card--selected {
-    border-color: #e0c97f;
-    background: #1e1e3a;
-    box-shadow: 0 0 12px rgba(224, 201, 127, 0.35);
+    border-color: var(--color-text-gold);
+    background: var(--color-card-selected-bg);
+    box-shadow: 0 0 12px var(--color-card-selected-glow);
 }
 
 .pack-piece-card__sprite {
@@ -102,7 +102,7 @@
 
 .pack-piece-card__type {
     font-size: 14px;
-    color: #e0c97f;
+    color: var(--color-text-gold);
     text-align: center;
     font-weight: 600;
     letter-spacing: 0.5px;
@@ -112,9 +112,9 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    color: #b388ff;
-    background: rgba(124, 77, 255, 0.15);
-    border: 1px solid rgba(124, 77, 255, 0.4);
+    color: var(--color-primary-light);
+    background: var(--color-primary-bg);
+    border: 1px solid var(--color-primary-border);
     border-radius: 3px;
     padding: 2px 6px;
 }
@@ -123,9 +123,9 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    color: #b388ff;
-    background: rgba(124, 77, 255, 0.15);
-    border: 1px solid rgba(124, 77, 255, 0.4);
+    color: var(--color-primary-light);
+    background: var(--color-primary-bg);
+    border: 1px solid var(--color-primary-border);
     border-radius: 3px;
     padding: 2px 6px;
 }
@@ -136,7 +136,7 @@
 }
 
 .pack-selection-confirm {
-    background: #4caf50;
+    background: var(--color-rarity-uncommon);
     color: #fff;
     border: none;
     border-radius: 4px;
@@ -149,11 +149,11 @@
 }
 
 .pack-selection-confirm:hover:not(:disabled) {
-    background: #388e3c;
+    background: var(--color-rarity-uncommon-hover);
 }
 
 .pack-selection-confirm:disabled {
-    background: #444466;
-    color: #666688;
+    background: var(--color-panel-disabled-bg);
+    color: var(--color-panel-disabled-text);
     cursor: not-allowed;
 }
