@@ -191,6 +191,8 @@
             pieceEl.style.transition = 'none';
             pieceEl.style.zIndex = '1000';
 
+            // grabOffsetY shifts piece above cursor when held (negative = up).
+            const grabOffsetY = (this.squareSize * 0.1);
             this._dragState = {
                 square: sq.dataset.square,
                 row, col, pieceEl,
@@ -198,12 +200,21 @@
                 startY: event.clientY,
                 pieceCenterClientX,
                 pieceCenterClientY,
+                grabOffsetY,
                 dragging: false,
                 lastOverSquare: null,
                 pointerId: event.pointerId,
+                currentX: event.clientX,
+                currentY: event.clientY,
+                prevX: event.clientX,
+                smoothedVelX: 0,
+                rafId: null,
             };
-            // Snap piece center to cursor immediately on press.
-            this._applyDragTransform(this._dragState, event.clientX, event.clientY);
+            // Snap piece center to cursor immediately on press (no rotation yet).
+            const snapTx = event.clientX - pieceCenterClientX;
+            const snapTy = event.clientY - pieceCenterClientY + grabOffsetY;
+            pieceEl.style.transform = `translate(${snapTx}px, ${snapTy}px) rotate(0deg)`;
+            this._startDragLoop();
             document.body.classList.add('chessboard-dragging');
 
             const onMove = (ev) => this._onPointerMove(ev);
@@ -221,7 +232,8 @@
         _onPointerMove(event) {
             const s = this._dragState;
             if (!s || event.pointerId !== s.pointerId) return;
-            this._applyDragTransform(s, event.clientX, event.clientY);
+            s.currentX = event.clientX;
+            s.currentY = event.clientY;
             if (!s.dragging) {
                 const dx = event.clientX - s.startX;
                 const dy = event.clientY - s.startY;
@@ -241,6 +253,7 @@
         _onPointerUp(event) {
             const s = this._dragState;
             if (!s || event.pointerId !== s.pointerId) return;
+            if (s.rafId) cancelAnimationFrame(s.rafId);
             this._dragState = null;
             document.body.classList.remove('chessboard-dragging');
             if (!s.dragging) {
@@ -271,16 +284,28 @@
         _cancelDrag() {
             const s = this._dragState;
             if (!s) return;
+            if (s.rafId) cancelAnimationFrame(s.rafId);
             this._dragState = null;
             document.body.classList.remove('chessboard-dragging');
             this._resetDraggedPieceStyles(s.pieceEl);
             if (s.dragging) this.emit('pieceDragEnd', { from: s.square, to: null });
         }
 
-        _applyDragTransform(s, clientX, clientY) {
-            const tx = clientX - s.pieceCenterClientX;
-            const ty = clientY - s.pieceCenterClientY;
-            s.pieceEl.style.transform = `translate(${tx}px, ${ty}px)`;
+        _startDragLoop() {
+            const loop = () => {
+                const s = this._dragState;
+                if (!s) return;
+                const velX = s.currentX - s.prevX;
+                s.prevX = s.currentX;
+                // Smooth velocity: new input blended in, decays toward 0 each frame when mouse stops
+                s.smoothedVelX = s.smoothedVelX * 0.80 + velX * 0.20;
+                const tx = s.currentX - s.pieceCenterClientX;
+                const ty = s.currentY - s.pieceCenterClientY + s.grabOffsetY;
+                const rotDeg = s.smoothedVelX * 4; //Math.max(-80, Math.min(80, s.smoothedVelX * 8));
+                s.pieceEl.style.transform = `translate(${tx}px, ${ty}px) rotate(${rotDeg}deg)`;
+                s.rafId = requestAnimationFrame(loop);
+            };
+            this._dragState.rafId = requestAnimationFrame(loop);
         }
 
         _resetDraggedPieceStyles(el) {

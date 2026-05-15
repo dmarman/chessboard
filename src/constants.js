@@ -15,7 +15,7 @@ const THEME = {
     scoreNegative:        '#f87171',
     scoreChips:           '#3b82f6',
     scoreMult:            '#ef4444',
-    scoreMoney:           '#f59e0b',
+    gold:                 '#ffcd00',
 
     // UI panels (shared across modals)
     panelBg:              '#1a1a2e',
@@ -29,16 +29,12 @@ const THEME = {
     cardSelectedGlow:     'rgba(224, 201, 127, 0.35)',
 
     // Text
-    textGold:             '#e0c97f',
     textMuted:            '#aaaacc',
     textSecondary:        '#9090bb',
     textLight:            '#eee',
-    goldText:             '#f5d76e',
-
     // Semantic
     danger:               '#e05555',
     dangerHover:          '#c03838',
-    coins:                '#f0c040',
 
     // Primary (purple / joker)
     primary:              '#7c4dff',

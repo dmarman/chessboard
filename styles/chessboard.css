@@ -331,7 +331,7 @@
 .score-popup--chips  .score-popup__diamond { background: var(--color-score-chips); }
 .score-popup--mult   .score-popup__diamond { background: var(--color-score-mult); }
 .score-popup--xmult  .score-popup__diamond { background: var(--color-score-mult); }
-.score-popup--money  .score-popup__diamond { background: var(--color-score-money); }
+.score-popup--money  .score-popup__diamond { background: var(--color-gold); }
 
 .score-popup__char {
     display: inline-block;

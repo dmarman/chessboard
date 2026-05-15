@@ -138,7 +138,7 @@
 
 #hud .hud-money-value {
     font-size: 48px;
-    color: var(--color-coins);
+    color: var(--color-gold);
     background: var(--color-hud-bg);
     width: 100%;
     border-radius: 4px;
@@ -175,7 +175,7 @@
 }
 
 #hud .hud-progress-current {
-    color: var(--color-gold-text);
+    color: var(--color-gold);
 }
 
 #hud .hud-progress-total {

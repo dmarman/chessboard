@@ -15,6 +15,10 @@
   src: url('../fonts/MorePerfectDOSVGA.ttf') format('truetype');
 }
 
+* {
+  user-select: none;
+}
+
 body {
   font-family: 'typoquick',
   sans-serif; display: flex;

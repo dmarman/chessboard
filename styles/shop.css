@@ -27,7 +27,7 @@
 
 .shop-title {
     font-size: 24px;
-    color: var(--color-text-gold);
+    color: var(--color-gold);
     text-transform: uppercase;
     letter-spacing: 2px;
 }
@@ -79,7 +79,7 @@
 
 .shop-card__name {
     font-size: 24px;
-    color: var(--color-text-gold);
+    color: var(--color-gold);
     text-align: center;
 }
 
@@ -93,7 +93,7 @@
 
 .shop-card__price {
     font-size: 32px;
-    color: var(--color-coins);
+    color: var(--color-gold);
     letter-spacing: 1px;
 }
 
