@@ -103,9 +103,9 @@
                     fxAnim = this._boardUI.animatePieceEffect(row, col, step.value, step.kind);
                 }
 
-                if (step.kind === 'chips') this._soundManager?.play('chips_card');
-                else if (step.kind === 'mult')      this._soundManager?.play('mult');
-                else if (step.kind === 'xmult')     this._soundManager?.play('xmult');
+                if (step.kind === 'chips')          { this._soundManager?.play('chips_card'); this._shakeScreen(1); }
+                else if (step.kind === 'mult')      { this._soundManager?.play('mult');       this._shakeScreen(2); }
+                else if (step.kind === 'xmult')     { this._soundManager?.play('xmult');      this._shakeScreen(3); }
                 else if (step.kind === 'retrigger') this._soundManager?.play('pop');
 
                 const hudAnim = snap.isLast
@@ -146,6 +146,35 @@
             if (move.captured)       return 'capture';
             if (move.isCastle)       return 'castle';
             return move.isOpponent ? 'move_opponent' : 'move_self';
+        }
+
+        _shakeScreen(amplitudePx) {
+            const root = document.getElementById('game-layout');
+            if (!root) return;
+
+            // Cancel any in-flight shake so back-to-back ticks restart cleanly.
+            this._shakeAnim?.cancel();
+
+            const rotAmp = Math.min(2.5, amplitudePx * 0.1); // degrees, capped
+            const rand = (min, max) => Math.random() * (max - min) + min;
+            const sign = () => (Math.random() < 0.5 ? -1 : 1);
+
+            // 5 random mid-frames + start/end at rest. Each frame randomizes x, y, rotation.
+            const frames = [{ transform: 'translate(0,0) rotate(0deg)' }];
+            for (let i = 0; i < 4; i++) {
+                const x = sign() * rand(amplitudePx * 0.4, amplitudePx);
+                const y = sign() * rand(amplitudePx * 0.4, amplitudePx);
+                const r = sign() * rand(rotAmp * 0.3, rotAmp);
+                frames.push({ transform: `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) rotate(${r.toFixed(2)}deg)` });
+                console.log(`translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) rotate(${r.toFixed(2)}deg)`)
+            }
+            frames.push({ transform: 'translate(0,0) rotate(0deg)' });
+
+            this._shakeAnim = root.animate(frames, {
+                duration: 400,
+                easing: 'ease-out',
+                fill: 'none',
+            });
         }
 
         reset() {

@@ -7,8 +7,7 @@ chess.js is legality-only; all piece reads for scoring, identity, or display mus
 
 Domain boundaries: each model owns its data. Cross the boundary only through an explicit adapter — never by reading the other model's raw internals.
 
-It's not multiplayer. Only one player plays. And to remove the cognitive burden of chess, the user will have to 
-choose the next movement based on a limited set of engine moves. Not implemented yet.
+It's not multiplayer. Only one player plays.
 
 The important thing is everything is in its own class and we keep concerns decoupled and clean code.
 

@@ -11,7 +11,7 @@
             name: 'Wild Jester',
             description: '+2 mult every move',
             type: 'Q',
-            rarity: 'common',
+            rarity: 'rare',
             price: 2,
             events: ['INDEPENDENT'],
             trigger(_ctx, _state) {
@@ -28,7 +28,7 @@
             name: 'Predator',
             description: 'Capture move → mult ×2',
             type: 'N',
-            rarity: 'rare',
+            rarity: 'common',
             price: 7,
             events: ['ON_PIECE_SCORED'],
             trigger({ lastMove }, _state) {
@@ -46,7 +46,7 @@
             name: 'Comet',
             description: 'If your move gives check, +12 mult',
             type: 'Q',
-            rarity: 'uncommon',
+            rarity: 'rare',
             price: 5,
             events: ['ON_MOVE_PLAYED'],
             trigger({ turn }, _state) {
@@ -79,9 +79,9 @@
         STABLEMASTER: {
             id: 'STABLEMASTER',
             name: 'Stablemaster',
-            description: 'Each non-moved knight gives +10 chips',
+            description: 'Each non-moved knight gives +5 chips',
             type: 'N',
-            rarity: 'uncommon',
+            rarity: 'common',
             price: 4,
             events: ['ON_NON_MOVED_PIECE'],
             trigger({ heldPiece }, _state) {
@@ -89,7 +89,7 @@
                 return [makeScoringStep({
                     event: EventType.ON_NON_MOVED_PIECE,
                     kind: 'chips',
-                    value: 10,
+                    value: 5,
                     source: { type: 'joker', id: 'STABLEMASTER', label: 'Stablemaster' },
                 })];
             }
@@ -117,7 +117,7 @@
             name: 'Metronome',
             description: 'Every third move, +4 mult',
             type: 'Q',
-            rarity: 'common',
+            rarity: 'uncommon',
             price: 3,
             events: ['ON_MOVE_PLAYED'],
             trigger(_ctx, state) {
@@ -136,7 +136,7 @@
             name: 'Duelist',
             description: 'Consecutive captures: +20, +40, +60 chips...',
             type: 'N',
-            rarity: 'rare',
+            rarity: 'common',
             price: 6,
             events: ['ON_MOVE_PLAYED'],
             trigger({ lastMove }, state) {
@@ -158,7 +158,7 @@
             name: 'Echo Knight',
             description: 'Knight move → retrigger scored piece',
             type: 'N',
-            rarity: 'rare',
+            rarity: 'common',
             price: 7,
             events: ['ON_PIECE_SCORED'],
             trigger({ lastMove }, _state) {
@@ -168,24 +168,6 @@
                     kind: 'retrigger',
                     value: 'null',
                     source: { type: 'joker', id: 'ECHO_KNIGHT', label: 'Echo Knight' },
-                })];
-            }
-        },
-        CORONATION: {
-            id: 'CORONATION',
-            name: 'Coronation',
-            description: 'Promotion move → ×200 mult',
-            type: 'Q',
-            rarity: 'rare',
-            price: 7,
-            events: ['ON_MOVE_PLAYED'],
-            trigger({ turn }, _state) {
-                if (!turn?.promotion) return null;
-                return [makeScoringStep({
-                    event: EventType.ON_MOVE_PLAYED,
-                    kind: 'xmult',
-                    value: 200,
-                    source: { type: 'joker', id: 'CORONATION', label: 'Coronation' },
                 })];
             }
         },
@@ -213,7 +195,7 @@
             name: 'Hedge Knight',
             description: 'Bishop or Knight moved → +4 mult',
             type: 'B',
-            rarity: 'common',
+            rarity: 'uncommon',
             price: 5,
             events: ['ON_PIECE_SCORED'],
             trigger({ lastMove }, _state) {
@@ -232,7 +214,7 @@
             name: 'Rank and File',
             description: 'Pawn moved → +10 mult',
             type: 'P',
-            rarity: 'common',
+            rarity: 'uncommon',
             price: 5,
             events: ['ON_PIECE_SCORED'],
             trigger({ lastMove }, _state) {
@@ -242,6 +224,24 @@
                     kind: 'mult',
                     value: 10,
                     source: { type: 'joker', id: 'RANK_AND_FILE', label: 'Rank and File' },
+                })];
+            }
+        },
+        testN: {
+            id: 'testN',
+            name: 'Rank and File',
+            description: 'Pawn moved → +10 mult',
+            type: 'P',
+            rarity: 'uncommon',
+            price: 5,
+            events: ['ON_PIECE_SCORED'],
+            trigger({ lastMove }, _state) {
+                if (lastMove?.piece?.type?.toLowerCase() !== 'n') return null;
+                return [makeScoringStep({
+                    event: EventType.ON_PIECE_SCORED,
+                    kind: 'mult',
+                    value: 10,
+                    source: { type: 'joker', id: 'testN', label: 'Rank and File' },
                 })];
             }
         },
@@ -305,7 +305,7 @@
             name: 'Minor Hunter',
             description: 'Capture a bishop or knight → +10 mult',
             type: 'N',
-            rarity: 'common',
+            rarity: 'uncommon',
             price: 4,
             events: ['ON_MOVE_PLAYED'],
             trigger({ lastMove }, _state) {
@@ -319,112 +319,183 @@
                 })];
             }
         },
-        CASTLE_CRASHER: {
-            id: 'CASTLE_CRASHER',
-            name: 'Castle Crasher',
-            description: 'Capture a rook → +20 mult',
-            type: 'R',
-            rarity: 'common',
-            price: 4,
-            events: ['ON_MOVE_PLAYED'],
-            trigger({ lastMove }, _state) {
-                if (lastMove?.captured?.type?.toLowerCase() !== 'r') return null;
-                return [makeScoringStep({
-                    event: EventType.ON_MOVE_PLAYED,
-                    kind: 'mult',
-                    value: 20,
-                    source: { type: 'joker', id: 'CASTLE_CRASHER', label: 'Castle Crasher' },
-                })];
-            }
-        },
-        REGICIDE: {
-            id: 'REGICIDE',
-            name: 'Regicide',
-            description: 'Capture the queen → +20 mult',
-            type: 'Q',
-            rarity: 'common',
-            price: 4,
-            events: ['ON_MOVE_PLAYED'],
-            trigger({ lastMove }, _state) {
-                if (lastMove?.captured?.type?.toLowerCase() !== 'q') return null;
-                return [makeScoringStep({
-                    event: EventType.ON_MOVE_PLAYED,
-                    kind: 'mult',
-                    value: 20,
-                    source: { type: 'joker', id: 'REGICIDE', label: 'Regicide' },
-                })];
-            }
-        },
-        PAWN_TROPHY: {
-            id: 'PAWN_TROPHY',
-            name: 'Pawn Trophy',
-            description: 'Capture a pawn → +40 chips',
+        PAWN_MARCH: {
+            id: 'PAWN_MARCH',
+            name: 'Pawn March',
+            description: '+1 mult per consecutive pawn moved. Resets on non-pawn.',
             type: 'P',
             rarity: 'common',
-            price: 4,
-            events: ['ON_MOVE_PLAYED'],
-            trigger({ lastMove }, _state) {
-                if (lastMove?.captured?.type?.toLowerCase() !== 'p') return null;
+            price: 6,
+            events: ['ON_PIECE_SCORED'],
+            trigger({ lastMove }, state) {
+                const t = lastMove?.piece?.type?.toLowerCase();
+                if (t !== 'p') {
+                    state.streak = 0;
+                    return null;
+                }
+                state.streak = (state.streak ?? 0) + 1;
                 return [makeScoringStep({
-                    event: EventType.ON_MOVE_PLAYED,
-                    kind: 'chips',
-                    value: 40,
-                    source: { type: 'joker', id: 'PAWN_TROPHY', label: 'Pawn Trophy' },
+                    event: EventType.ON_PIECE_SCORED,
+                    kind: 'mult',
+                    value: state.streak,
+                    source: { type: 'joker', id: 'PAWN_MARCH', label: 'Pawn March' },
                 })];
             }
         },
-        MINOR_TROPHY: {
-            id: 'MINOR_TROPHY',
-            name: 'Minor Trophy',
-            description: 'Capture a bishop or knight → +10 chips',
-            type: 'N',
-            rarity: 'common',
-            price: 4,
-            events: ['ON_MOVE_PLAYED'],
-            trigger({ lastMove }, _state) {
-                const t = lastMove?.captured?.type?.toLowerCase();
-                if (t !== 'b' && t !== 'n') return null;
+        REPETITION: {
+            id: 'REPETITION',
+            name: 'Repetition',
+            description: '+1 mult per consecutive move of same piece. Resets on different piece.',
+            type: 'Q',
+            rarity: 'uncommon',
+            price: 6,
+            events: ['ON_PIECE_SCORED'],
+            trigger({ lastMove }, state) {
+                const id = lastMove?.piece?.id;
+                if (!id) {
+                    state.streak = 0;
+                    state.lastPieceId = null;
+                    return null;
+                }
+                if (id === state.lastPieceId) {
+                    state.streak = (state.streak ?? 0) + 1;
+                } else {
+                    state.streak = 1;
+                    state.lastPieceId = id;
+                }
                 return [makeScoringStep({
-                    event: EventType.ON_MOVE_PLAYED,
-                    kind: 'chips',
-                    value: 10,
-                    source: { type: 'joker', id: 'MINOR_TROPHY', label: 'Minor Trophy' },
+                    event: EventType.ON_PIECE_SCORED,
+                    kind: 'mult',
+                    value: state.streak,
+                    source: { type: 'joker', id: 'REPETITION', label: 'Repetition' },
                 })];
             }
         },
-        TOWER_PLUNDER: {
-            id: 'TOWER_PLUNDER',
-            name: 'Tower Plunder',
-            description: 'Capture a rook → +50 chips',
-            type: 'R',
-            rarity: 'common',
-            price: 4,
-            events: ['ON_MOVE_PLAYED'],
-            trigger({ lastMove }, _state) {
-                if (lastMove?.captured?.type?.toLowerCase() !== 'r') return null;
-                return [makeScoringStep({
-                    event: EventType.ON_MOVE_PLAYED,
-                    kind: 'chips',
-                    value: 50,
-                    source: { type: 'joker', id: 'TOWER_PLUNDER', label: 'Tower Plunder' },
-                })];
-            }
-        },
-        ROYAL_BOUNTY: {
-            id: 'ROYAL_BOUNTY',
-            name: 'Royal Bounty',
-            description: 'Capture the queen → +50 chips',
+        QUEEN_PROCESSION: {
+            id: 'QUEEN_PROCESSION',
+            name: 'Queen Procession',
+            description: '+1 mult per consecutive queen move. Resets on non-queen.',
             type: 'Q',
             rarity: 'common',
-            price: 4,
+            price: 6,
+            events: ['ON_PIECE_SCORED'],
+            trigger({ lastMove }, state) {
+                const t = lastMove?.piece?.type?.toLowerCase();
+                if (t !== 'q') {
+                    state.streak = 0;
+                    return null;
+                }
+                state.streak = (state.streak ?? 0) + 1;
+                return [makeScoringStep({
+                    event: EventType.ON_PIECE_SCORED,
+                    kind: 'mult',
+                    value: state.streak,
+                    source: { type: 'joker', id: 'QUEEN_PROCESSION', label: 'Queen Procession' },
+                })];
+            }
+        },
+        GLACIER: {
+            id: 'GLACIER',
+            name: 'Glacier',
+            description: '+50 chips, melts -5 per move',
+            type: 'Q',
+            rarity: 'rare',
+            price: 5,
+            events: ['INDEPENDENT'],
+            trigger(_ctx, state) {
+                state.chips = state.chips ?? 50;
+                const value = state.chips;
+                state.chips = Math.max(0, state.chips - 5);
+                if (value <= 0) return null;
+                return [makeScoringStep({
+                    event: EventType.INDEPENDENT,
+                    kind: 'chips',
+                    value,
+                    source: { type: 'joker', id: 'GLACIER', label: 'Glacier' },
+                })];
+            }
+        },
+        FULL_ARMY: {
+            id: 'FULL_ARMY',
+            name: 'Full Army',
+            description: 'All 16 pieces alive → ×2 mult',
+            type: 'K',
+            rarity: 'common',
+            price: 6,
             events: ['ON_MOVE_PLAYED'],
-            trigger({ lastMove }, _state) {
-                if (lastMove?.captured?.type?.toLowerCase() !== 'q') return null;
+            trigger({ boardInspector, playerColor }, _state) {
+                if (boardInspector?.countByColor(playerColor) !== 16) return null;
                 return [makeScoringStep({
                     event: EventType.ON_MOVE_PLAYED,
+                    kind: 'xmult',
+                    value: 2,
+                    source: { type: 'joker', id: 'FULL_ARMY', label: 'Full Army' },
+                })];
+            }
+        },
+        LUMBERJACK: {
+            id: 'LUMBERJACK',
+            name: 'Lumberjack',
+            description: '+chips equal to sum of your piece values',
+            type: 'R',
+            rarity: 'rare',
+            price: 6,
+            events: ['INDEPENDENT'],
+            trigger({ boardInspector, playerColor }, _state) {
+                const entries = boardInspector?.getPiecesWithCoordsByColor(playerColor) ?? [];
+                const steps = [];
+                for (const { piece, row, col } of entries) {
+                    const pieceSteps = Effects.PIECE[piece.type.toLowerCase()] ?? [];
+                    for (const e of pieceSteps) {
+                        if (e.kind !== 'chips') continue;
+                        steps.push(makeScoringStep({
+                            event: EventType.INDEPENDENT,
+                            kind: 'chips',
+                            value: e.value,
+                            source: { type: 'piece', id: piece.id, label: piece.name ?? piece.type, row, col },
+                        }));
+                    }
+                }
+                return steps.length ? steps : null;
+            }
+        },
+        PAWN_WALL: {
+            id: 'PAWN_WALL',
+            name: 'Pawn Wall',
+            description: 'All 8 pawns alive → ×2 mult',
+            type: 'P',
+            rarity: 'common',
+            price: 6,
+            events: ['ON_MOVE_PLAYED'],
+            trigger({ boardInspector, playerColor }, _state) {
+                if (boardInspector?.getPieceCount('p', playerColor) !== 8) return null;
+                return [makeScoringStep({
+                    event: EventType.ON_MOVE_PLAYED,
+                    kind: 'xmult',
+                    value: 2,
+                    source: { type: 'joker', id: 'PAWN_WALL', label: 'Pawn Wall' },
+                })];
+            }
+        },
+        SHERPA: {
+            id: 'SHERPA',
+            name: 'Sherpa',
+            description: 'Every played piece permanently gains +5 chips when scored',
+            type: 'P',
+            rarity: 'common',
+            price: 6,
+            events: ['ON_PIECE_SCORED'],
+            trigger({ lastMove }, state) {
+                const id = lastMove?.piece?.id;
+                if (!id) return null;
+                state.bonuses = state.bonuses ?? new Map();
+                const next = (state.bonuses.get(id) ?? 0) + 5;
+                state.bonuses.set(id, next);
+                return [makeScoringStep({
+                    event: EventType.ON_PIECE_SCORED,
                     kind: 'chips',
-                    value: 50,
-                    source: { type: 'joker', id: 'ROYAL_BOUNTY', label: 'Royal Bounty' },
+                    value: next,
+                    source: { type: 'joker', id: 'SHERPA', label: 'Sherpa' },
                 })];
             }
         },

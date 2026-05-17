@@ -6,8 +6,8 @@
     pointer-events: none;
     display: none;
     flex-direction: column;
-    gap: 6px;
-    padding: 4px 4px;
+    gap: 4px;
+    padding: 4px 4px 8px 4px;
     min-width: 96px;
     max-width: 192px;
     background: var(--color-panel-bg, #1a1a2e);
@@ -61,6 +61,7 @@
 /* effect rows sit on the dark inner bg */
 .effect-tooltip__row {
     text-align: center;
+    padding: 6px 8px;
 }
 
 .effect-tooltip__row:last-child {
@@ -82,13 +83,14 @@
     padding: 5px 10px;
     color: #fff;
     text-transform: capitalize;
-    border-radius: 4px;
+    border-radius: 50px;
     width: fit-content;
     margin: 0 auto;
+    text-shadow: 1px 1px #0000008c;
+    font-size: 19px;
 }
 
 .effect-tooltip__tag--enhancement {
-    margin-top: 16px;
     background: var(--color-rarity-rare);
 }
 

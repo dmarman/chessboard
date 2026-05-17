@@ -29,7 +29,10 @@ body {
   /* -webkit-font-smoothing: none;
   text-rendering: optimizeSpeed; */
   font-weight: 600;
+  overflow: hidden;
 }
+
+html { overflow: hidden; }
 
 body img {
   /* image-rendering: pixelated; */
@@ -37,6 +40,20 @@ body img {
 
 
 button, input, select, textarea { font: inherit; }
+
+/* Score-tick screen shake. Intensity via --shake-amp set inline. */
+@keyframes score-shake {
+  0%   { transform: translate(0, 0); }
+  20%  { transform: translate(calc(var(--shake-amp, 3px) * -1), calc(var(--shake-amp, 3px) * 0.6)); }
+  40%  { transform: translate(calc(var(--shake-amp, 3px) * 0.8), calc(var(--shake-amp, 3px) * -0.8)); }
+  60%  { transform: translate(calc(var(--shake-amp, 3px) * -0.6), calc(var(--shake-amp, 3px) * -0.4)); }
+  80%  { transform: translate(calc(var(--shake-amp, 3px) * 0.4), calc(var(--shake-amp, 3px) * 0.8)); }
+  100% { transform: translate(0, 0); }
+}
+
+#game-layout.score-shake {
+  animation: score-shake 5020ms ease-in-out;
+}
 
 #bg-canvas {
   position: fixed;

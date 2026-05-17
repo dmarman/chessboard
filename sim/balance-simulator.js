@@ -121,7 +121,10 @@ class HeuristicScenarioGenerator {
         this._opponentPromotionRate = options.opponentPromotionRate ?? 0.005;
         this._pieceWeights = options.pieceWeights ?? { P: 27, N: 18, B: 16, R: 16, Q: 12, K: 11 };
         this._capturedPieceWeights = options.capturedPieceWeights ?? { P: 50, N: 74, B: 65, R: 45, Q: 51 };
-        this._heldPieceRange = options.heldPieceRange ?? [5, 14];
+        // Default upper bound = 15 so a full 16-piece army (1 moving + 15 held) is reachable for FULL_ARMY.
+        this._heldPieceRange = options.heldPieceRange ?? [5, 15];
+        // Stable per-game piece pool counts — mirrors a chess army so REPETITION/SHERPA can streak.
+        this._movingPoolCounts = options.movingPoolCounts ?? { P: 8, N: 2, B: 2, R: 2, Q: 1, K: 1 };
         // Enhancement + edition rolls per snapshot piece. Defaults = no-op so existing runs unchanged.
         // Pass booster-pack-style weights to measure their balance impact.
         this._enhancementWeights = options.enhancementWeights ?? { none: 1 };
@@ -136,14 +139,33 @@ class HeuristicScenarioGenerator {
     }
 
     makeGamePlan(turnCount, rng) {
+        const movingPool = this._buildMovingPool(rng);
         const turns = [];
         for (let i = 0; i < turnCount; i++) {
-            turns.push(this._makeTurnScenario(rng, i));
+            turns.push(this._makeTurnScenario(rng, i, movingPool));
         }
         return turns;
     }
 
-    _makeTurnScenario(rng, turnIndex) {
+    // Per-game stable piece identities. Reusing ids across turns lets jokers that
+    // track piece history (REPETITION, SHERPA) actually streak in simulation.
+    _buildMovingPool(rng) {
+        const pool = {};
+        for (const [type, count] of Object.entries(this._movingPoolCounts)) {
+            pool[type] = [];
+            for (let i = 0; i < count; i++) {
+                pool[type].push(makePieceSnapshot({
+                    id: `pool-${type}-${i}-${crypto.randomUUID()}`,
+                    type,
+                    color: this._playerColor,
+                    ...this._rollModifiers(rng),
+                }));
+            }
+        }
+        return pool;
+    }
+
+    _makeTurnScenario(rng, turnIndex, movingPool) {
         const movedType = rng.weightedPick(this._pieceWeights);
         const isCapture = rng.chance(this._captureRate);
         const isCheck = rng.chance(this._checkRate);
@@ -156,12 +178,19 @@ class HeuristicScenarioGenerator {
             ? rng.pick(['q', 'r', 'b', 'n'])
             : null;
 
-        const movingPiece = makePieceSnapshot({
-            id: `turn-${turnIndex}-piece`,
-            type: promotion ? promotion.toUpperCase() : movedType,
-            color: this._playerColor,
-            ...this._rollModifiers(rng),
-        });
+        const poolCandidates = movingPool?.[movedType] ?? [];
+        const baseMovingPiece = poolCandidates.length
+            ? rng.pick(poolCandidates)
+            : makePieceSnapshot({
+                id: `turn-${turnIndex}-piece`,
+                type: movedType,
+                color: this._playerColor,
+                ...this._rollModifiers(rng),
+            });
+        // Promotion: keep stable id, morph piece type for this turn only.
+        const movingPiece = promotion
+            ? makePieceSnapshot({ ...baseMovingPiece, type: promotion.toUpperCase() })
+            : baseMovingPiece;
         const boardState = makeBoardState({
             movingPiece,
             heldPieces: makeHeldPieces(rng, this._heldPieceRange, this._playerColor, () => this._rollModifiers(rng)),
@@ -258,6 +287,10 @@ class BalanceSimulator {
         this._runtime = options.runtime ?? loadGameRuntime(this._rootDir);
         this._generator = options.generator ?? new HeuristicScenarioGenerator();
         this._defaultSeed = options.seed ?? 12345;
+    }
+
+    get jokerDefs() {
+        return this._runtime.JOKER_DEFS;
     }
 
     run(config = {}) {

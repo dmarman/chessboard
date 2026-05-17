@@ -136,7 +136,7 @@
             squaresLayer.addEventListener('mouseover', (event) => {
                 const sq = event.target.closest('.chess-square');
                 if (!sq || !this.boardElement.contains(sq)) return;
-                this.emit('squareHover', { square: sq.dataset.square });
+                this.emit('squareHover', { square: sq.dataset.square, clientX: event.clientX, clientY: event.clientY });
             });
             squaresLayer.addEventListener('mouseleave', () => {
                 this.emit('squareHover', { square: null });
@@ -167,6 +167,7 @@
                     if (!pieceEl) { this._clearCurrentTilt(); return; }
                     if (pieceEl !== this._tiltedPieceEl) this._clearCurrentTilt();
                 }
+                this.emit('squareHover', { square: sq.dataset.square, clientX: event.clientX, clientY: event.clientY });
                 const rect = sq.getBoundingClientRect();
                 const ratioX = (event.clientX - (rect.left + rect.width / 2)) / (rect.width / 2);
                 const ratioY = (event.clientY - (rect.top + rect.height / 2)) / (rect.height / 2);
@@ -494,7 +495,7 @@
             const diamondAnim = diamond.animate([
                 { transform: 'translate(-50%, -50%) rotate(4deg)  scale(0)',    opacity: 0 },
                 { transform: 'translate(-50%, -50%) rotate(45deg) scale(1.2)',  opacity: 0.6, offset: 0.2 },
-                { transform: 'translate(-50%, -50%) rotate(40deg) scale(1)',    opacity: 0.6, offset: 0.4 },
+                { transform: 'translate(-50%, -50%) rotate(40deg) scale(1)',    opacity: 1, offset: 0.4 },
                 { transform: 'translate(-50%, -50%) rotate(45deg) scale(1)',    opacity: 0.6, offset: 0.7 },
                 { transform: 'translate(-50%, -50%) rotate(4deg) scale(1.15)', opacity: 0 },
             ], { duration: dur, easing: 'ease-out', fill: 'forwards' });

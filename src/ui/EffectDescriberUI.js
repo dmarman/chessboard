@@ -9,8 +9,8 @@
     //   EffectDescriberUI.detach(element);  // removes listeners
 
     class EffectDescriberUI {
-        static _tooltip = null;
-        static _pinned  = true;
+        static _tooltip   = null;
+        static _pinned    = false;
         static _listeners = new WeakMap(); // element -> { enter, leave }
 
         // Build and mount the singleton tooltip element.
@@ -120,7 +120,7 @@
             return `
                 ${title ? `<div class="effect-tooltip__title">${title}</div>` : ''}
                 <div class="effect-tooltip__rows">${rows || '<div class="effect-tooltip__empty">No effects</div>'}</div>
-                ${enhancement != 'none' ? `<div class="effect-tooltip__tag effect-tooltip__tag--enhancement">${enhancement} card</div>` : ''}
+                ${enhancement != 'none' ? `<div class="effect-tooltip__tag effect-tooltip__tag--enhancement">${enhancement} piece</div>` : ''}
                 ${edition != 'base' ? `<div class="effect-tooltip__tag effect-tooltip__tag--edition">${({ holo: 'Holographic', poly: 'Polychrome', shine: 'Polished' })[edition] ?? edition}</div>` : ''}
             `;
         }
@@ -161,9 +161,9 @@
             if (!def) return '';
             return `
                 <div class="effect-tooltip__title">${def.name ?? ''}</div>
-                <div class="effect-tooltip__row">
+                <div class="effect-tooltip__rows"><div class="effect-tooltip__row">
                     <span class="effect-tooltip__value">${def.description ?? ''}</span>
-                </div>
+                </div></div>
             `;
         }
     }

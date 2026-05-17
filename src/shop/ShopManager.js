@@ -8,6 +8,7 @@
         { rarity: 'common',    threshold: 70  },
         { rarity: 'uncommon',  threshold: 95  },
         { rarity: 'rare',      threshold: 100 },
+        { rarity: 'legendary', threshold: 100 },
         // legendary: weight 0 — never rolled
     ];
 

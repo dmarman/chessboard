@@ -27,7 +27,7 @@
                 case 'chips':
                     return `${EffectDescriber._valueSpan('+', `${value}`, THEME.scoreChips)} chips ${pct}`;
                 case 'mult':
-                    return `${EffectDescriber._valueSpan('+', `${value}`, THEME.scoreMult)} mult ${pct}`;
+                    return `${EffectDescriber._valueSpan('+', `${value}`, THEME.scoreMult)} Mult ${pct}`;
                 case 'xmult':
                     return `${EffectDescriber._valueSpan('×', `${value}`, null, THEME.scoreMult, '#fff')} xmult ${pct}`;
                 case 'money':

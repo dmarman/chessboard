@@ -122,9 +122,9 @@ class GameController {
         const startCommands = this._tournamentManager.triggerPowers('onGameStart', gameStartCtx);
         this._commandDispatcher.execute(startCommands, { scoreEngine: this._scoreEngine, chessGame: this._chessGame });
 
-         //this._jokerRegistry.add('HEDGE_KNIGHT');
-         //this._jokerRegistry.add('STABLEMASTER');
-         //this._jokerRegistry.add('ECHO_KNIGHT');
+         this._jokerRegistry.add('LUMBERJACK');
+         //this._jokerRegistry.add('REPETITION');
+         //this._jokerRegistry.add('QUEEN_PROCESSION');
 
         try {
             if (GameController.PLAYER_COLOR === 'b') {
@@ -267,8 +267,8 @@ class GameController {
 
         for (const type of ['P','P','P','P','P','P','P','P','R','N','B','Q','K','B','N','R']) {
             this._chessSet.addPiece(type, {
-                //edition: 'holo',
-                //enhancement: 'metal',
+                // edition: 'poly',
+                // enhancement: 'red',
             });
         }
 
@@ -411,13 +411,19 @@ class GameController {
             this._outcomeResolver.notifyTurn({ isCheckmate, player }, PLAYER.USER);
         });
 
-        this._chessBoardUI.on('squareHover', ({ square }) => {
+        this._chessBoardUI.on('squareHover', ({ square, clientX, clientY }) => {
             if (!square) { EffectDescriberUI.hide(); return; }
             const piece = this._chessboard.getPieceAt(square);
             if (!piece) { EffectDescriberUI.hide(); return; }
             if (piece.color() !== GameController.PLAYER_COLOR) { EffectDescriberUI.hide(); return; }
             const el = this._chessBoardUI.getSquareElement(square);
             if (!el) return;
+            // Only show tooltip when pointer is in the center 60% of the square (20% inset each side)
+            const rect  = el.getBoundingClientRect();
+            const inset = 0.3;
+            const inX   = clientX >= rect.left + rect.width  * inset && clientX <= rect.right  - rect.width  * inset;
+            const inY   = clientY >= rect.top  + rect.height * inset && clientY <= rect.bottom - rect.height * inset;
+            if (!inX || !inY) { EffectDescriberUI.hide(); return; }
             EffectDescriberUI.showAt(el, { type: 'piece', piece: piece.toSnapshot() });
         });
 
